@@ -52,4 +52,47 @@ class HRX
   def last_comment=(comment)
     @last_comment = comment.encode("UTF-8")
   end
+
+  # Returns this archive, serialized to text in HRX format.
+  def to_hrx
+    buffer = String.new.encode("UTF-8")
+    boundary = "<#{"=" * _choose_boundary_length}>"
+
+    entries.each_with_index do |e, i|
+      buffer << boundary << "\n" << e.comment << "\n" if e.comment
+      buffer << boundary << " " << e.path << "\n"
+      if e.respond_to?(:content) && !e.content.empty?
+        buffer << e.content
+        buffer << "\n" unless i == entries.length - 1
+      end
+    end
+    buffer << boundary << "\n" << last_comment << "\n" if last_comment
+
+    buffer.freeze
+  end
+
+  private
+
+  # Returns a boundary length for a serialized archive that doesn't conflict
+  # with any of the files that archive contains.
+  def _choose_boundary_length
+    forbidden_boundary_lengths = Set.new
+    entries.each do |e|
+      [
+        (e.content if e.respond_to?(:content)),
+        e.comment
+      ].each do |text|
+        next unless text
+        text.scan(/^<(=+)>/m).each do |(equals)|
+          forbidden_boundary_lengths << equals.length
+        end
+      end
+    end
+
+    boundary_length = @boundary_length
+    while forbidden_boundary_lengths.include?(boundary_length)
+      boundary_length += 1
+    end
+    boundary_length
+  end
 end
