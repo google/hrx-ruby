@@ -34,7 +34,6 @@ RSpec.shared_examples "validates paths" do
   allows_a_path_that "starts with a dot", ".foo"
   allows_a_path_that "contains non-alphanumeric characters", '~`!@#$%^&*()_-+= {}[]|;"\'<,>.?'
   allows_a_path_that "contains non-ASCII characters", "☃"
-  allows_a_path_that "contains non-ASCII characters", "☃"
 
   forbids_a_path_that "is empty", ""
   forbids_a_path_that 'is "."', "."
@@ -44,7 +43,7 @@ RSpec.shared_examples "validates paths" do
   forbids_a_path_that "contains multiple separators in a row", "foo//bar"
   forbids_a_path_that "contains an invalid component", "foo/../bar"
 
-  [*0x00..0x1f, 0x3A, 0x5C, 0x7F].each do |c|
+  [*0x00..0x09, *0x0B..0x1F, 0x3A, 0x5C, 0x7F].each do |c|
     forbids_a_path_that "contains U+00#{c.to_s(16).rjust(2, "0")}", "fo#{c.chr}o"
   end
 end

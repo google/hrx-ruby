@@ -43,6 +43,10 @@ RSpec.describe HRX::File, "#initialize" do
     expect {HRX::File.new("file/", "")}.to raise_error(HRX::ParseError)
   end
 
+  it "forbids a path with a newline" do
+    expect {HRX::File.new("fi\nle", "")}.to raise_error(HRX::ParseError)
+  end
+
   context "with arguments that are convertible to UTF-8" do
     subject do
       ika = "いか".encode("SJIS")

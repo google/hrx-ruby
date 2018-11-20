@@ -43,6 +43,10 @@ RSpec.describe HRX::Directory, "#initialize" do
     it("converts #comment") {expect(subject.comment).to be == "いか"}
   end
 
+  it "forbids a path with a newline" do
+    expect {HRX::Directory.new("di\nr")}.to raise_error(HRX::ParseError)
+  end
+
   it "doesn't add a slash to a path that has one" do
     expect(HRX::Directory.new("dir/").path).to be == "dir/"
   end

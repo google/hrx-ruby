@@ -21,6 +21,64 @@ require_relative 'hrx/parse_error'
 
 # An HRX archive.
 class HRX
+  class << self
+    # Parses an HRX file's text.
+    #
+    # If `file` is passed, it's used as the file name for error reporting.
+    def parse(text, file: nil)
+      text = text.encode("UTF-8")
+      return new if text.empty?
+
+      scanner = StringScanner.new(text)
+      unless boundary = scanner.scan(/<=+>/)
+        HRX::Util.parse_error(scanner, "Expected boundary", file: file)
+      end
+      boundary_length = boundary.length - 2
+      hrx = HRX.new(boundary_length: boundary_length)
+      boundary_regexp = /^<={#{boundary_length}}>/m
+
+      entries_by_path = {}
+      loop do
+        if scanner.scan(/\n/)
+          if comment_plus_boundary = scanner.scan_until(boundary_regexp)
+            comment = comment_plus_boundary[0...-boundary_length - 3]
+          else
+            hrx.last_comment = scanner.rest
+            return hrx
+          end
+        end
+
+        unless scanner.scan(/ /)
+          HRX::Util.parse_error(scanner, "Expected space", file: file)
+        end
+
+        path = HRX::Util.scan_path(scanner, assert_done: false, file: file)
+        unless scanner.scan(/\n/)
+          HRX::Util.parse_error(scanner, "Expected newline", file: file)
+        end
+
+        if path.end_with?("/")
+          error = hrx._add_entry HRX::Directory._new_without_checks(path, comment)
+          HRX::Util.parse_error(scanner, error, file: file) if error
+
+          return hrx if scanner.eos?
+          next if scanner.scan(boundary_regexp)
+          HRX::Util.parse_error(scanner, "Expected boundary", file: file)
+        end
+
+        if content_plus_boundary = scanner.scan_until(boundary_regexp)
+          content = content_plus_boundary[0...-boundary_length - 3]
+          error = hrx._add_entry HRX::File._new_without_checks(path, content, comment)
+          HRX::Util.parse_error(scanner, error, file: file) if error
+        else
+          error = hrx._add_entry HRX::File._new_without_checks(path, scanner.rest, comment)
+          HRX::Util.parse_error(scanner, error, file: file) if error
+          return hrx
+        end
+      end
+    end
+  end
+
   # An array of the HRX::File and/or HRX::Directory objects that this archive
   # contains.
   #
@@ -43,6 +101,7 @@ class HRX
 
     @boundary_length = boundary_length
     @entries = []
+    @entries_by_path = {}
   end
 
   # Sets the text of the last comment in the document.
@@ -69,6 +128,37 @@ class HRX
     buffer << boundary << "\n" << last_comment << "\n" if last_comment
 
     buffer.freeze
+  end
+
+  # Adds `entry` to this archive.
+  #
+  # Returns an error message if the entry conflicts with an existing entry, or
+  # `nil` otherwise.
+  #
+  # :nodoc:
+  def _add_entry(entry)
+    path = entry.path.split("/")
+    path.pop if path.last.empty?
+
+    parent = path[0...-1].inject(@entries_by_path) do |hash, component|
+      return "\"#{hash[component].path}\" defined twice" if hash[component].is_a?(HRX::File)
+      hash[component] ||= {}
+    end
+
+    return "\"#{entry.path}\" defined twice" if parent[path.last].is_a?(HRX::File)
+
+    if entry.is_a?(HRX::Directory)
+      dir = (parent[path.last] ||= {})
+      return "\"#{entry.path}\" defined twice" if dir[:dir]
+      dir[:dir] = entry
+    else
+      return "\"#{entry.path}\" defined twice" if parent.has_key?(path.last)
+      parent[path.last] = entry
+    end
+
+    @entries << entry
+
+    nil
   end
 
   private

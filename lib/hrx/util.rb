@@ -33,15 +33,15 @@ class HRX
           parse_error(scanner, "Expected a path", file: file)
         end
 
-        scanner.string[start...scanner.pos]
+        scanner.string.byteslice(start...scanner.pos)
       end
 
       # Emits an ArgumentError with the given `message` and line and column
       # information from the current position of `scanner`.
       def parse_error(scanner, message, file: nil)
-        before = scanner.string[0...scanner.pos]
+        before = scanner.string.byteslice(0...scanner.pos)
         line = before.count("\n") + 1
-        column = before[/^.*\z/].length + 1
+        column = (before[/^.*\z/] || "").length + 1
 
         raise ParseError.new(message, line, column, file: file)
       end
@@ -59,7 +59,7 @@ class HRX
           parse_error(scanner, "Invalid path component \"#{component}\"", file: file)
         end
 
-        if char = scanner.scan(/[\u0000-\u000A\u000B-\u001F\u007F]/)
+        if char = scanner.scan(/[\u0000-\u0009\u000B-\u001F\u007F]/)
           scanner.unscan
           parse_error(scanner, "Invalid character U+00#{char.ord.to_s(16).rjust(2, "0").upcase}", file: file)
         elsif char = scanner.scan(/[\\:]/)
