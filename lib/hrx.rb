@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+require 'linked-list'
 require 'set'
 require 'strscan'
 
@@ -38,7 +39,6 @@ class HRX
       hrx = HRX.new(boundary_length: boundary_length)
       boundary_regexp = /^<={#{boundary_length}}>/m
 
-      entries_by_path = {}
       loop do
         if scanner.scan(/\n/)
           if comment_plus_boundary = scanner.scan_until(boundary_regexp)
@@ -99,7 +99,7 @@ class HRX
     end
 
     @boundary_length = boundary_length
-    @entries = []
+    @entries = LinkedList::List.new
     @entries_by_path = {}
   end
 
@@ -109,7 +109,7 @@ class HRX
   # Note that a new array is created every time this method is called, so try to
   # avoid calling this many times in a tight loop.
   def entries
-    @entries.clone.freeze
+    @entries.to_a.freeze
   end
 
   # Sets the text of the last comment in the document.
@@ -122,11 +122,18 @@ class HRX
 
   # Adds an HRX::File or HRX::Directory to this archive.
   #
+  # If `before` or `after` is passed, this adds `entry` before or after the
+  # entry with the given path in the archive. If the archive has no entry with
+  # the given path, this throws an HRX::Error. If `before` and `after` are
+  # *both* passed, this throws an ArgumentError.
+  #
   # Throws an HRX::Error if the entry conflicts with an existing entry.
-  def <<(entry)
-    path = entry.path.split("/")
-    path.pop if path.last.empty?
+  def add(entry, before: nil, after: nil)
+    raise ArgumentError.new("before and after may not both be passed.") if before && after
 
+    node = LinkedList::Node.new(entry)
+
+    path = entry.path.split("/")
     parent = path[0...-1].inject(@entries_by_path) do |hash, component|
       if hash[component].is_a?(HRX::File)
         raise HRX::Error.new("\"#{hash[component].path}\" defined twice")
@@ -140,17 +147,31 @@ class HRX
 
     if entry.is_a?(HRX::Directory)
       dir = (parent[path.last] ||= {})
-      raise HRX::Error.new("\"#{entry.path}\" defined twice") if dir[:dir]
-      dir[:dir] = entry
+      if dir.is_a?(LinkedList::Node) || dir[:dir]
+        raise HRX::Error.new("\"#{entry.path}\" defined twice")
+      end
+      dir[:dir] = node
     else
       raise HRX::Error.new("\"#{entry.path}\" defined twice") if parent.has_key?(path.last)
-      parent[path.last] = entry
+      parent[path.last] = node
     end
 
-    @entries << entry
+    if before || after
+      reference = _find_node(before || after)
+      raise HRX::Error.new("There is no entry named \"#{before || after}\"") if reference.nil?
+
+      if before
+        @entries.insert_before_node(node, reference)
+      else
+        @entries.insert_after_node(node, reference)
+      end
+    else
+      @entries << node
+    end
 
     nil
   end
+  alias_method :<<, :add
 
   # Returns this archive, serialized to text in HRX format.
   def to_hrx
@@ -171,6 +192,14 @@ class HRX
   end
 
   private
+
+  # Returns the LinkedList::Node at the given `path`, or `nil` if there is no
+  # node at that path.
+  def _find_node(path)
+    result = @entries_by_path.dig(*path.split("/"))
+    return result[:dir] if result.is_a?(Hash)
+    return result unless path.end_with?("/")
+  end
 
   # Returns a boundary length for a serialized archive that doesn't conflict
   # with any of the files that archive contains.

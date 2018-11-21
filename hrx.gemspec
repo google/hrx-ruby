@@ -1,4 +1,4 @@
-Gem::Specification.new do
+Gem::Specification.new do |s|
   s.name = "hrx"
   s.version = "1.0.0"
   s.license = "Apache-2.0"
@@ -11,5 +11,6 @@ Gem::Specification.new do
 
   s.files = `git ls-files -z`.split("\x0")
 
-  s.required_ruby_version = ">= 2.0.0"
+  s.add_runtime_dependency "linked-list", "~> 0.0.12"
+  s.required_ruby_version = ">= 2.3.0"
 end
