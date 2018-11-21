@@ -12,9 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+require_relative 'error'
+
 class HRX
   # An error caused by an HRX file failing to parse correctly.
-  class ParseError < StandardError
+  class ParseError < HRX::Error
     # The 1-based line of the document on which the error occurred.
     attr_reader :line
 
