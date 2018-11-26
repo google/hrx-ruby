@@ -106,6 +106,38 @@ END
       end
     end
 
+    context "#read" do
+      it "throws for an empty path" do
+        expect {subject.read("")}.to raise_error(HRX::Error, 'There is no file at ""')
+      end
+
+      it "throws for a path that's not in the archive" do
+        expect {subject.read("non/existent/file")}.to(
+          raise_error(HRX::Error, 'There is no file at "non/existent/file"'))
+      end
+
+      it "throws for an implicit directory" do
+        expect {subject.read("super")}.to raise_error(HRX::Error, 'There is no file at "super"')
+      end
+
+      it "throws for a file wih a slash" do
+        expect {subject.read("super/sub/")}.to(
+          raise_error(HRX::Error, 'There is no file at "super/sub/"'))
+      end
+
+      it "throws for a directory" do
+        expect {subject.read("dir")}.to raise_error(HRX::Error, '"dir/" is a directory')
+      end
+
+      it "returns the contents of a file at the root level" do
+        expect(subject.read("file")).to be == "file contents\n"
+      end
+
+      it "returns the contents of a file in a directory" do
+        expect(subject.read("super/sub")).to be == "sub contents\n"
+      end
+    end
+
     context "#add" do
       it "adds a file to the end of the archive" do
         file = HRX::File.new("other", "")

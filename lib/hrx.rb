@@ -124,6 +124,16 @@ class HRX
     _find_node(path)&.data
   end
 
+  # Returns the contents of the file at `path` in the archive.
+  #
+  # Throws an HRX::Error if there is no file at `path`, or if `path` is invalid
+  # (including if it ends with `/`).
+  def read(path)
+    raise HRX::Error.new("There is no file at \"#{path}\"") unless node = _find_node(path)
+    raise HRX::Error.new("\"#{node.data.path}\" is a directory") unless node.data.is_a?(HRX::File)
+    node.data.content
+  end
+
   # Sets the text of the last comment in the document.
   #
   # Throws an Encoding::UndefinedConversionError if `comment` can't be converted
@@ -141,7 +151,7 @@ class HRX
   #
   # Throws an HRX::Error if the entry conflicts with an existing entry.
   def add(entry, before: nil, after: nil)
-    raise ArgumentError.new("before and after may not both be passed.") if before && after
+    raise ArgumentError.new("before and after may not both be passed") if before && after
 
     node = LinkedList::Node.new(entry)
 
