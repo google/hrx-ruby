@@ -112,6 +112,18 @@ class HRX
     @entries.to_a.freeze
   end
 
+  # Returns the HRX::File or HRX::Directory at the given `path` in this archive,
+  # or `nil` if there's no entry at that path.
+  #
+  # This doesn't verify that `path` is well-formed, but instead just returns
+  # `nil`.
+  #
+  # If `path` ends with `"/"`, returns `nil` if the entry at the given path is a
+  # file rather than a directory.
+  def [](path)
+    _find_node(path)&.data
+  end
+
   # Sets the text of the last comment in the document.
   #
   # Throws an Encoding::UndefinedConversionError if `comment` can't be converted
@@ -196,7 +208,9 @@ class HRX
   # Returns the LinkedList::Node at the given `path`, or `nil` if there is no
   # node at that path.
   def _find_node(path)
-    result = @entries_by_path.dig(*path.split("/"))
+    components = path.split("/")
+    return if components.empty?
+    result = @entries_by_path.dig(*components)
     return result[:dir] if result.is_a?(Hash)
     return result unless path.end_with?("/")
   end

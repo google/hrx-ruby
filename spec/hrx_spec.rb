@@ -38,7 +38,7 @@ RSpec.describe HRX do
     it "is frozen" do
       expect do
         subject.entries << HRX::Directory.new("dir")
-      end.to raise_error(FrozenError)
+      end.to raise_error(RuntimeError)
     end
 
     it "reflects new entries" do
@@ -62,128 +62,167 @@ RSpec.describe HRX do
     end
   end
 
-  context "#add with files and directories in the archive" do
+  context "with files and directories in the archive" do
     subject {HRX.parse(<<END)}
 <===> file
+file contents
+
 <===> dir/
 <===> super/sub
+sub contents
 END
 
-    it "adds a file to the end of the archive" do
-      file = HRX::File.new("other", "")
-      subject << file
-      expect(subject.entries.last).to be == file
-    end
-
-    it "adds a file in an existing directory to the end of the archive" do
-      file = HRX::File.new("dir/other", "")
-      subject << file
-      expect(subject.entries.last).to be == file
-    end
-
-    it "allows an implicit directory to be made explicit" do
-      dir = HRX::Directory.new("super")
-      subject << dir
-      expect(subject.entries.last).to be == dir
-    end
-
-    it "throws an error for a duplicate file" do
-      expect do
-        subject << HRX::File.new("file", "")
-      end.to raise_error(HRX::Error, '"file" defined twice')
-    end
-
-    it "throws an error for a duplicate directory" do
-      expect do
-        subject << HRX::Directory.new("dir")
-      end.to raise_error(HRX::Error, '"dir/" defined twice')
-    end
-
-    it "throws an error for a file with a directory's name" do
-      expect do
-        subject << HRX::File.new("dir", "")
-      end.to raise_error(HRX::Error, '"dir" defined twice')
-    end
-
-    it "throws an error for a file with an implicit directory's name" do
-      expect do
-        subject << HRX::File.new("super", "")
-      end.to raise_error(HRX::Error, '"super" defined twice')
-    end
-
-    it "throws an error for a directory with a file's name" do
-      expect do
-        subject << HRX::Directory.new("file")
-      end.to raise_error(HRX::Error, '"file/" defined twice')
-    end
-
-    context "with :before" do
-      it "adds the new entry before the given file" do
-        subject.add HRX::File.new("other", ""), before: "super/sub"
-        expect(subject.entries[2].path).to be == "other"
+    context "#[]" do
+      it "doesn't return an empty path" do
+        expect(subject[""]).to be_nil
       end
 
-      it "adds the new entry before the given directory" do
-        subject.add HRX::File.new("other", ""), before: "dir/"
-        expect(subject.entries[1].path).to be == "other"
+      it "doesn't return a path that's not in the archive" do
+        expect(subject["non/existent/file"]).to be_nil
       end
 
-      it "adds the new entry before the given directory without a /" do
-        subject.add HRX::File.new("other", ""), before: "dir"
-        expect(subject.entries[1].path).to be == "other"
+      it "doesn't return an implicit directory" do
+        expect(subject["super"]).to be_nil
       end
 
-      it "fails if the path can't be found" do
+      it "doesn't return a file wih a slash" do
+        expect(subject["super/sub/"]).to be_nil
+      end
+
+      it "returns a file at the root level" do
+        expect(subject["file"].content).to be == "file contents\n"
+      end
+
+      it "returns a file in a directory" do
+        expect(subject["super/sub"].content).to be == "sub contents\n"
+      end
+
+      it "returns an explicit directory" do
+        expect(subject["dir"].path).to be == "dir/"
+      end
+
+      it "returns an explicit directory with a leading slash" do
+        expect(subject["dir/"].path).to be == "dir/"
+      end
+    end
+
+    context "#add" do
+      it "adds a file to the end of the archive" do
+        file = HRX::File.new("other", "")
+        subject << file
+        expect(subject.entries.last).to be == file
+      end
+
+      it "adds a file in an existing directory to the end of the archive" do
+        file = HRX::File.new("dir/other", "")
+        subject << file
+        expect(subject.entries.last).to be == file
+      end
+
+      it "allows an implicit directory to be made explicit" do
+        dir = HRX::Directory.new("super")
+        subject << dir
+        expect(subject.entries.last).to be == dir
+      end
+
+      it "throws an error for a duplicate file" do
         expect do
-          subject.add HRX::File.new("other", ""), before: "asdf"
-        end.to raise_error(HRX::Error, 'There is no entry named "asdf"')
+          subject << HRX::File.new("file", "")
+        end.to raise_error(HRX::Error, '"file" defined twice')
       end
 
-      it "fails if the path is an implicit directory" do
+      it "throws an error for a duplicate directory" do
         expect do
-          subject.add HRX::File.new("other", ""), before: "super"
-        end.to raise_error(HRX::Error, 'There is no entry named "super"')
+          subject << HRX::Directory.new("dir")
+        end.to raise_error(HRX::Error, '"dir/" defined twice')
       end
 
-      it "fails if a trailing slash is used for a file" do
+      it "throws an error for a file with a directory's name" do
         expect do
-          subject.add HRX::File.new("other", ""), before: "file/"
-        end.to raise_error(HRX::Error, 'There is no entry named "file/"')
-      end
-    end
-
-    context "with :after" do
-      it "adds the new entry after the given file" do
-        subject.add HRX::File.new("other", ""), after: "super/sub"
-        expect(subject.entries[3].path).to be == "other"
+          subject << HRX::File.new("dir", "")
+        end.to raise_error(HRX::Error, '"dir" defined twice')
       end
 
-      it "adds the new entry after the given directory" do
-        subject.add HRX::File.new("other", ""), after: "dir/"
-        expect(subject.entries[2].path).to be == "other"
-      end
-
-      it "adds the new entry after the given directory without a /" do
-        subject.add HRX::File.new("other", ""), after: "dir"
-        expect(subject.entries[2].path).to be == "other"
-      end
-
-      it "fails if the path can't be found" do
+      it "throws an error for a file with an implicit directory's name" do
         expect do
-          subject.add HRX::File.new("other", ""), after: "asdf"
-        end.to raise_error(HRX::Error, 'There is no entry named "asdf"')
+          subject << HRX::File.new("super", "")
+        end.to raise_error(HRX::Error, '"super" defined twice')
       end
 
-      it "fails if the path is an implicit directory" do
+      it "throws an error for a directory with a file's name" do
         expect do
-          subject.add HRX::File.new("other", ""), after: "super"
-        end.to raise_error(HRX::Error, 'There is no entry named "super"')
+          subject << HRX::Directory.new("file")
+        end.to raise_error(HRX::Error, '"file/" defined twice')
       end
 
-      it "fails if a trailing slash is used for a file" do
-        expect do
-          subject.add HRX::File.new("other", ""), after: "file/"
-        end.to raise_error(HRX::Error, 'There is no entry named "file/"')
+      context "with :before" do
+        it "adds the new entry before the given file" do
+          subject.add HRX::File.new("other", ""), before: "super/sub"
+          expect(subject.entries[2].path).to be == "other"
+        end
+
+        it "adds the new entry before the given directory" do
+          subject.add HRX::File.new("other", ""), before: "dir/"
+          expect(subject.entries[1].path).to be == "other"
+        end
+
+        it "adds the new entry before the given directory without a /" do
+          subject.add HRX::File.new("other", ""), before: "dir"
+          expect(subject.entries[1].path).to be == "other"
+        end
+
+        it "fails if the path can't be found" do
+          expect do
+            subject.add HRX::File.new("other", ""), before: "asdf"
+          end.to raise_error(HRX::Error, 'There is no entry named "asdf"')
+        end
+
+        it "fails if the path is an implicit directory" do
+          expect do
+            subject.add HRX::File.new("other", ""), before: "super"
+          end.to raise_error(HRX::Error, 'There is no entry named "super"')
+        end
+
+        it "fails if a trailing slash is used for a file" do
+          expect do
+            subject.add HRX::File.new("other", ""), before: "file/"
+          end.to raise_error(HRX::Error, 'There is no entry named "file/"')
+        end
+      end
+
+      context "with :after" do
+        it "adds the new entry after the given file" do
+          subject.add HRX::File.new("other", ""), after: "super/sub"
+          expect(subject.entries[3].path).to be == "other"
+        end
+
+        it "adds the new entry after the given directory" do
+          subject.add HRX::File.new("other", ""), after: "dir/"
+          expect(subject.entries[2].path).to be == "other"
+        end
+
+        it "adds the new entry after the given directory without a /" do
+          subject.add HRX::File.new("other", ""), after: "dir"
+          expect(subject.entries[2].path).to be == "other"
+        end
+
+        it "fails if the path can't be found" do
+          expect do
+            subject.add HRX::File.new("other", ""), after: "asdf"
+          end.to raise_error(HRX::Error, 'There is no entry named "asdf"')
+        end
+
+        it "fails if the path is an implicit directory" do
+          expect do
+            subject.add HRX::File.new("other", ""), after: "super"
+          end.to raise_error(HRX::Error, 'There is no entry named "super"')
+        end
+
+        it "fails if a trailing slash is used for a file" do
+          expect do
+            subject.add HRX::File.new("other", ""), after: "file/"
+          end.to raise_error(HRX::Error, 'There is no entry named "file/"')
+        end
       end
     end
   end
