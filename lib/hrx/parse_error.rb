@@ -14,28 +14,26 @@
 
 require_relative 'error'
 
-class HRX
-  # An error caused by an HRX file failing to parse correctly.
-  class ParseError < HRX::Error
-    # The 1-based line of the document on which the error occurred.
-    attr_reader :line
+# An error caused by an HRX file failing to parse correctly.
+class HRX::ParseError < HRX::Error
+  # The 1-based line of the document on which the error occurred.
+  attr_reader :line
 
-    # The 1-based column of the line on which the error occurred.
-    attr_reader :column
+  # The 1-based column of the line on which the error occurred.
+  attr_reader :column
 
-    # The file which failed to parse, or `nil` if the filename isn't known.
-    attr_reader :file
+  # The file which failed to parse, or `nil` if the filename isn't known.
+  attr_reader :file
 
-    def initialize(message, line, column, file: nil)
-      super(message)
-      @line = line
-      @column = column
-    end
+  def initialize(message, line, column, file: nil)
+    super(message)
+    @line = line
+    @column = column
+  end
 
-    def to_s
-      buffer = String.new("Parse error on line #{line}, column #{column}")
-      buffer << " of #{file}" if file
-      buffer << ": #{super.to_s}"
-    end
+  def to_s
+    buffer = String.new("Parse error on line #{line}, column #{column}")
+    buffer << " of #{file}" if file
+    buffer << ": #{super.to_s}"
   end
 end

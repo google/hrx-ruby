@@ -17,8 +17,8 @@ require 'hrx'
 
 require_relative 'validates_path'
 
-RSpec.describe HRX do
-  subject {HRX.new}
+RSpec.describe HRX::Archive do
+  subject {HRX::Archive.new}
 
   context "when first initialized" do
     it "has no entries" do
@@ -47,11 +47,11 @@ RSpec.describe HRX do
 
   context "#initialize" do
     it "should forbid boundary_length 0" do
-      expect {HRX.new(boundary_length: 0)}.to raise_error(ArgumentError)
+      expect {HRX::Archive.new(boundary_length: 0)}.to raise_error(ArgumentError)
     end
 
     it "should forbid negative boundary_length" do
-      expect {HRX.new(boundary_length: -1)}.to raise_error(ArgumentError)
+      expect {HRX::Archive.new(boundary_length: -1)}.to raise_error(ArgumentError)
     end
   end
 
@@ -84,7 +84,7 @@ RSpec.describe HRX do
   end
 
   context "with files and directories in the archive" do
-    subject {HRX.parse(<<END)}
+    subject {HRX::Archive.parse(<<END)}
 <===> file
 file contents
 
@@ -493,7 +493,7 @@ END
   end
 
   context "with physically distant files in the same directory" do
-    subject {HRX.parse(<<END)}
+    subject {HRX::Archive.parse(<<END)}
 <===> dir/super/sub1
 sub1 contents
 
@@ -669,7 +669,7 @@ END
     end
 
     context "with an explicit boundary length" do
-      subject {HRX.new(boundary_length: 1)}
+      subject {HRX::Archive.new(boundary_length: 1)}
 
       it "uses it if possible" do
         subject << HRX::File.new("file", "contents\n")

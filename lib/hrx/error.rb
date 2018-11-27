@@ -12,7 +12,5 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-class HRX
-  # An error thrown by the HRX package.
-  class Error < StandardError; end
-end
+# An error thrown by the HRX package.
+class HRX::Error < StandardError; end

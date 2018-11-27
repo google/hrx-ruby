@@ -19,22 +19,22 @@ require_relative 'validates_path'
 
 RSpec.describe HRX, ".parse" do
   it "parses an empty file" do
-    expect(HRX.parse("").entries).to be_empty
+    expect(HRX::Archive.parse("").entries).to be_empty
   end
 
   it "converts the file to UTF-8" do
-    hrx = HRX.parse("<===> いか\n".encode("SJIS"))
+    hrx = HRX::Archive.parse("<===> いか\n".encode("SJIS"))
     expect(hrx.entries.first.path).to be == "いか"
   end
 
   it "requires the file to be convetible to UTF-8" do
     expect do
-      HRX.parse("<===> \xc3\x28\n".b)
+      HRX::Archive.parse("<===> \xc3\x28\n".b)
     end.to raise_error(Encoding::UndefinedConversionError)
   end
 
   context "with a single file" do
-    subject {HRX.parse(<<END)}
+    subject {HRX::Archive.parse(<<END)}
 <===> file
 contents
 END
@@ -52,12 +52,12 @@ END
     end
 
     it "parses contents without a newline" do
-      hrx = HRX.parse("<===> file\ncontents")
+      hrx = HRX::Archive.parse("<===> file\ncontents")
       expect(hrx.entries.first.content).to be == "contents"
     end
 
     it "parses contents with boundary-like sequences" do
-      hrx = HRX.parse(<<END)
+      hrx = HRX::Archive.parse(<<END)
 <===> file
 <==>
 inline <===>
@@ -71,7 +71,7 @@ END
     end
 
     context "with a comment" do
-      subject {HRX.parse(<<END)}
+      subject {HRX::Archive.parse(<<END)}
 <===>
 comment
 <===> file
@@ -97,7 +97,7 @@ END
   end
 
   context "with multiple files" do
-    subject {HRX.parse(<<END)}
+    subject {HRX::Archive.parse(<<END)}
 <===> file 1
 contents 1
 
@@ -126,7 +126,7 @@ END
     end
 
     it "allows an explicit parent directory" do
-      hrx = HRX.parse(<<END)
+      hrx = HRX::Archive.parse(<<END)
 <===> dir/
 <===> dir/file
 contents
@@ -136,7 +136,7 @@ END
     end
 
     it "parses contents without a newline" do
-      hrx = HRX.parse(<<END)
+      hrx = HRX::Archive.parse(<<END)
 <===> file 1
 contents 1
 <===> file 2
@@ -146,7 +146,7 @@ END
     end
 
     it "parses contents with boundary-like sequences" do
-      hrx = HRX.parse(<<END)
+      hrx = HRX::Archive.parse(<<END)
 <===> file 1
 <==>
 inline <===>
@@ -163,7 +163,7 @@ END
     end
 
     context "with a comment" do
-      subject {HRX.parse(<<END)}
+      subject {HRX::Archive.parse(<<END)}
 <===> file 1
 contents 1
 
@@ -200,14 +200,14 @@ END
   end
 
   it "parses a file that only contains a comment" do
-    expect(HRX.parse(<<END).last_comment).to be == "contents\n"
+    expect(HRX::Archive.parse(<<END).last_comment).to be == "contents\n"
 <===>
 contents
 END
   end
 
   it "parses a file that only contains a comment with boundary-like sequences" do
-    expect(HRX.parse(<<HRX).last_comment).to be == <<CONTENTS
+    expect(HRX::Archive.parse(<<HRX).last_comment).to be == <<CONTENTS
 <===>
 <==>
 inline <===>
@@ -220,7 +220,7 @@ CONTENTS
   end
 
   context "with a file and a trailing comment" do
-    subject {HRX.parse(<<END)}
+    subject {HRX::Archive.parse(<<END)}
 <===> file
 contents
 
@@ -246,7 +246,7 @@ END
   end
 
   context "with a single directory" do
-    subject {HRX.parse("<===> dir/\n")}
+    subject {HRX::Archive.parse("<===> dir/\n")}
 
     it "parses one entry" do
       expect(subject.entries.length).to be == 1
@@ -262,7 +262,7 @@ END
   end
 
   it "serializes in source order" do
-    hrx = HRX.parse(<<END)
+    hrx = HRX::Archive.parse(<<END)
 <===> foo
 <===> dir/bar
 <===> baz
@@ -278,11 +278,11 @@ END
   end
 
   it "serializes with the source boundary" do
-    hrx = HRX.parse("<=> file\n")
+    hrx = HRX::Archive.parse("<=> file\n")
     expect(hrx.to_hrx).to be == "<=> file\n"
   end
 
-  let(:constructor) {lambda {|path| HRX.parse("<===> #{path}\n")}}
+  let(:constructor) {lambda {|path| HRX::Archive.parse("<===> #{path}\n")}}
   include_examples "validates paths"
 
   context "forbids an HRX file that" do
@@ -290,7 +290,7 @@ END
     # description, can't be parsed.
     def self.that(description, text, message)
       it description do
-        expect {HRX.parse(text)}.to raise_error(HRX::ParseError, message)
+        expect {HRX::Archive.parse(text)}.to raise_error(HRX::ParseError, message)
       end
     end
 

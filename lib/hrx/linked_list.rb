@@ -14,11 +14,9 @@
 
 require 'linked-list'
 
-class HRX
-  # A subclass of LinkedList::List that exposes a public method to unlink a
-  # node from the list.
-  class List < LinkedList::List
-    alias_method :unlink, :__unlink_node
-    public :unlink
-  end
+# A subclass of LinkedList::List that exposes a public method to unlink a
+# node from the list.
+class HRX::List < LinkedList::List
+  alias_method :unlink, :__unlink_node
+  public :unlink
 end
