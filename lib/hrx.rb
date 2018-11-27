@@ -272,7 +272,7 @@ class HRX
     path = entry.path.split("/")
     parent = path[0...-1].inject(@entries_by_path) do |hash, component|
       if hash[component].is_a?(LinkedList::Node)
-        raise HRX::Error.new("\"#{entry.data.path}\" is a file")
+        raise HRX::Error.new("\"#{hash[component].data.path}\" defined twice")
       end
       hash[component] ||= {}
     end
