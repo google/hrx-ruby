@@ -15,12 +15,33 @@
 
 require 'hrx'
 
+require_relative 'validates_path'
+
 RSpec.describe HRX do
   subject {HRX.new}
 
   context "when first initialized" do
     it "has no entries" do
       expect(subject.entries).to be_empty
+    end
+
+    context "#read" do
+      it "fails for any path" do
+        expect {subject.read("path")}.to raise_error(HRX::Error)
+      end
+
+      context "#write" do
+        before(:each) {subject.write("path", "contents\n")}
+
+        it "adds a file to the end of the archive" do
+          expect(subject.entries.last.path).to be == "path"
+          expect(subject.entries.last.content).to be == "contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("path")).to be == "contents\n"
+        end
+      end
     end
   end
 
@@ -68,8 +89,18 @@ RSpec.describe HRX do
 file contents
 
 <===> dir/
+<===>
+comment contents
+
 <===> super/sub
 sub contents
+
+<===> very/deeply/
+<===> very/deeply/nested/file
+nested contents
+
+<===> last
+the last file
 END
 
     context "#[]" do
@@ -135,6 +166,136 @@ END
 
       it "returns the contents of a file in a directory" do
         expect(subject.read("super/sub")).to be == "sub contents\n"
+      end
+    end
+
+    context "#write" do
+      it "validates the path" do
+        expect {subject.write("super/./sub", "")}.to raise_error(HRX::ParseError)
+      end
+
+      it "rejects a path that ends in a slash" do
+        expect {subject.write("file/", "")}.to raise_error(HRX::ParseError)
+      end
+
+      it "fails if a parent directory is a file" do
+        expect {subject.write("file/sub", "")}.to raise_error(HRX::Error)
+      end
+
+      it "fails if the path is an explicit directory" do
+        expect {subject.write("dir", "")}.to raise_error(HRX::Error)
+      end
+
+      it "fails if the path is an implicit directory" do
+        expect {subject.write("super", "")}.to raise_error(HRX::Error)
+      end
+
+      context "with a top-level file" do
+        before(:each) {subject.write("new", "new contents\n")}
+
+        it "adds to the end of the archive" do
+          expect(subject.entries.last.path).to be == "new"
+          expect(subject.entries.last.content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("new")).to be == "new contents\n"
+        end
+      end
+
+      context "with a file in a new directory tree" do
+        before(:each) {subject.write("new/sub/file", "new contents\n")}
+
+        it "adds to the end of the archive" do
+          expect(subject.entries.last.path).to be == "new/sub/file"
+          expect(subject.entries.last.content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("new/sub/file")).to be == "new contents\n"
+        end
+      end
+
+      context "with a file in an explicit directory" do
+        before(:each) {subject.write("dir/new", "new contents\n")}
+
+        it "adds to the end of the directory" do
+          new_index = subject.entries.find_index {|e| e.path == "dir/"} + 1
+          expect(subject.entries[new_index].path).to be == "dir/new"
+          expect(subject.entries[new_index].content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("dir/new")).to be == "new contents\n"
+        end
+      end
+
+      context "with a file in an implicit directory" do
+        before(:each) {subject.write("super/another", "new contents\n")}
+
+        it "adds to the end of the directory" do
+          new_index = subject.entries.find_index {|e| e.path == "super/sub"} + 1
+          expect(subject.entries[new_index].path).to be == "super/another"
+          expect(subject.entries[new_index].content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("super/another")).to be == "new contents\n"
+        end
+      end
+
+      context "with a file in an implicit directory that's not a sibling" do
+        before(:each) {subject.write("very/different/nesting", "new contents\n")}
+
+        it "adds after its cousin" do
+          new_index = subject.entries.find_index {|e| e.path == "very/deeply/nested/file"} + 1
+          expect(subject.entries[new_index].path).to be == "very/different/nesting"
+          expect(subject.entries[new_index].content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("very/different/nesting")).to be == "new contents\n"
+        end
+      end
+
+      context "with an existing filename" do
+        let (:old_index) {subject.entries.find_index {|e| e.path == "super/sub"}}
+        before(:each) {subject.write("super/sub", "new contents\n")}
+
+        it "overwrites that file" do
+          expect(subject.read("super/sub")).to be == "new contents\n"
+        end
+
+        it "uses the same location as that file" do
+          expect(subject.entries[old_index].path).to be == "super/sub"
+          expect(subject.entries[old_index].content).to be == "new contents\n"
+        end
+
+        it "removes the comment" do
+          expect(subject.entries[old_index].comment).to be_nil
+        end
+      end
+
+      context "with a comment" do
+        it "writes the comment" do
+          subject.write("new", "", comment: "new comment\n")
+          expect(subject["new"].comment).to be == "new comment\n"
+        end
+
+        it "overwrites an existing comment" do
+          subject.write("super/sub", "", comment: "new comment\n")
+          expect(subject["super/sub"].comment).to be == "new comment\n"
+        end
+
+        it "re-uses an existing comment with :copy" do
+          subject.write("super/sub", "", comment: :copy)
+          expect(subject["super/sub"].comment).to be == "comment contents\n"
+        end
+
+        it "ignores :copy for a new file" do
+          subject.write("new", "", comment: :copy)
+          expect(subject["new"].comment).to be_nil
+        end
       end
     end
 
@@ -259,7 +420,66 @@ END
     end
   end
 
+  context "with physically distant files in the same directory" do
+    subject {HRX.parse(<<END)}
+<===> dir/super/sub1
+sub1 contents
+
+<===> base 1
+<===> dir/other/child1
+child1 contents
+
+<===> base 2
+<===> dir/super/sub2
+sub2 contents
+
+<===> base 3
+<===> dir/other/child2
+child2 contents
+
+<===> base 4
+<===> dir/super/sub3
+sub3 contents
+
+<===> base 5
+END
+
+    context "#write" do
+      context "with a file in an implicit directory" do
+        before(:each) {subject.write("dir/other/new", "new contents\n")}
+
+        it "adds after the last file in the directory" do
+          new_index = subject.entries.find_index {|e| e.path == "dir/other/child2"} + 1
+          expect(subject.entries[new_index].path).to be == "dir/other/new"
+          expect(subject.entries[new_index].content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("dir/other/new")).to be == "new contents\n"
+        end
+      end
+
+      context "with a file in an implicit directory that's not a sibling" do
+        before(:each) {subject.write("dir/another/new", "new contents\n")}
+
+        it "adds to the end of the directory" do
+          new_index = subject.entries.find_index {|e| e.path == "dir/super/sub3"} + 1
+          expect(subject.entries[new_index].path).to be == "dir/another/new"
+          expect(subject.entries[new_index].content).to be == "new contents\n"
+        end
+
+        it "adds a file that's readable by name" do
+          expect(subject.read("dir/another/new")).to be == "new contents\n"
+        end
+      end
+    end
+  end
+
   context "#to_hrx" do
+    it "returns the empty string for an empty file" do
+      expect(subject.to_hrx).to be_empty
+    end
+
     it "writes a file's name and contents" do
       subject << HRX::File.new("file", "contents\n")
       expect(subject.to_hrx).to be == <<END

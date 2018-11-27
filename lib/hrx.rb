@@ -19,6 +19,7 @@ require 'strscan'
 require_relative 'hrx/file'
 require_relative 'hrx/directory'
 require_relative 'hrx/error'
+require_relative 'hrx/ordered_node'
 require_relative 'hrx/parse_error'
 
 # An HRX archive.
@@ -134,6 +135,66 @@ class HRX
     node.data.content
   end
 
+  # Writes `content` to the file at `path`.
+  #
+  # If there's already a file at `path`, overwrites it. Otherwise, creates a new
+  # file after the nearest file in the archive.
+  #
+  # If `comment` is passed, it's used as the comment for the new file. The
+  # special value `:copy` copies the existing comment for the file, if there is
+  # one.
+  #
+  # Throws an HRX::ParseError if `path` is invalid.
+  #
+  # Throws an HRX::Error if there's a directory at `path`.
+  def write(path, content, comment: nil)
+    components = path.split("/")
+    nearest_dir = nil
+    parent = components[0...-1].inject(@entries_by_path) do |hash, component|
+      entry = hash[component]
+      if entry.is_a?(LinkedList::Node)
+        raise HRX::Error.new("\"#{entry.data.path}\" is a file")
+      end
+
+      # Even though both branches of this if are assignments, their return
+      # values are used by #inject.
+      if entry
+        nearest_dir = entry
+      else
+        hash[component] = {}
+      end
+    end
+    nearest_dir = parent unless parent.empty?
+
+    previous = parent[components.last]
+    if previous.is_a?(Hash)
+      raise HRX::Error.new("\"#{path}/\" is a directory")
+    end
+
+    if previous.is_a?(LinkedList::Node)
+      comment = previous.data.comment if comment == :copy
+      previous.data = HRX::File.new(path, content, comment: comment)
+      return
+    end
+
+    comment = nil if comment == :copy
+    node = HRX::OrderedNode.new(HRX::File.new(path, content, comment: comment))
+    if nearest_dir.nil?
+      @entries << node
+    else
+      # Add the new file after its closest pre-existing cousin. Start looking
+      # for siblings in `nearest_dir`, and then work down through its children.
+      if last_cousin = _each_entry(nearest_dir).max_by {|n| n.order}
+        @entries.insert_after_node(node, last_cousin)
+      else
+        @entries << node
+      end
+    end
+
+    parent[components.last] = node
+    nil
+  end
+
   # Sets the text of the last comment in the document.
   #
   # Throws an Encoding::UndefinedConversionError if `comment` can't be converted
@@ -153,12 +214,12 @@ class HRX
   def add(entry, before: nil, after: nil)
     raise ArgumentError.new("before and after may not both be passed") if before && after
 
-    node = LinkedList::Node.new(entry)
+    node = HRX::OrderedNode.new(entry)
 
     path = entry.path.split("/")
     parent = path[0...-1].inject(@entries_by_path) do |hash, component|
-      if hash[component].is_a?(HRX::File)
-        raise HRX::Error.new("\"#{hash[component].path}\" defined twice")
+      if hash[component].is_a?(LinkedList::Node)
+        raise HRX::Error.new("\"#{entry.data.path}\" is a file")
       end
       hash[component] ||= {}
     end
@@ -223,6 +284,20 @@ class HRX
     result = @entries_by_path.dig(*components)
     return result[:dir] if result.is_a?(Hash)
     return result unless path.end_with?("/")
+  end
+
+  # Returns each entry in or beneath the directory hash `dir`, in no particular
+  # order.
+  def _each_entry(dir)
+    return to_enum(__method__, dir) unless block_given?
+
+    dir.values.each do |entry|
+      if entry.is_a?(Hash)
+        _each_entry(entry) {|e| yield e}
+      else
+        yield entry
+      end
+    end
   end
 
   # Returns a boundary length for a serialized archive that doesn't conflict
