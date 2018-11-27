@@ -16,9 +16,9 @@ require 'linked-list'
 require 'set'
 require 'strscan'
 
-require_relative 'file'
 require_relative 'directory'
 require_relative 'error'
+require_relative 'file'
 require_relative 'linked_list'
 require_relative 'ordered_node'
 require_relative 'parse_error'
@@ -84,6 +84,20 @@ class HRX::Archive
         end
       end
     end
+
+    # Creates an archive as a child of an existing archive.
+    #
+    # The `root` is the path to the root of this archive, relative to its
+    # outermost ancestor. The `entries` is the outermost ancestor's entries
+    # list. The `entries_by_path` is the subtree of the outermost ancestor's
+    # entries tree that corresponds to this child.
+    #
+    # :nodoc:
+    def _new_child(root, boundary_length, entries, entries_by_path)
+      allocate.tap do |archive|
+        archive._initialize_child(root, boundary_length, entries, entries_by_path)
+      end
+    end
   end
 
   # The last comment in the document, or `nil` if it has no final comment.
@@ -100,9 +114,20 @@ class HRX::Archive
       raise ArgumentError.new("boundary_length must be 1 or greater")
     end
 
+    @root = nil
     @boundary_length = boundary_length
     @entries = HRX::List.new
     @entries_by_path = {}
+  end
+
+  # See _new_child.
+  #
+  # :nodoc:
+  def _initialize_child(root, boundary_length, entries, entries_by_path)
+    @root = root.end_with?("/") ? root : root + "/"
+    @boundary_length = boundary_length
+    @entries = entries
+    @entries_by_path = entries_by_path
   end
 
   # A frozen array of the HRX::File and/or HRX::Directory objects that this
@@ -111,7 +136,12 @@ class HRX::Archive
   # Note that a new array is created every time this method is called, so try to
   # avoid calling this many times in a tight loop.
   def entries
-    @entries.to_a.freeze
+    return @entries.to_a.freeze unless @root
+    @entries.
+      each.
+      select {|e| e.path.start_with?(@root) && e.path != @root}.
+      map {|e| e._relative(@root)}.
+      freeze
   end
 
   # Returns the HRX::File or HRX::Directory at the given `path` in this archive,
@@ -123,7 +153,7 @@ class HRX::Archive
   # If `path` ends with `"/"`, returns `nil` if the entry at the given path is a
   # file rather than a directory.
   def [](path)
-    _find_node(path)&.data
+    _find_node(path)&.data&._relative(@root)
   end
 
   # Returns the contents of the file at `path` in the archive.
@@ -132,8 +162,28 @@ class HRX::Archive
   # (including if it ends with `/`).
   def read(path)
     raise HRX::Error.new("There is no file at \"#{path}\"") unless node = _find_node(path)
-    raise HRX::Error.new("\"#{node.data.path}\" is a directory") unless node.data.is_a?(HRX::File)
+    unless node.data.is_a?(HRX::File)
+      raise HRX::Error.new("\"#{node.data._relative(@root).path}\" is a directory")
+    end
     node.data.content
+  end
+
+  # Returns an HRX::Archive that provides access to the entries in `path` as
+  # though they were at the root of the archive.
+  #
+  # Any modifications to the child archive will be reflected in the parent as
+  # well. The HRX::File and HRX::Directory objects returned by the child archive
+  # will have their paths adjusted to be relative to the child's root.
+  def child_archive(path)
+    components = path.split("/")
+    raise HRX::Error.new('There is no directory at ""') if components.empty?
+    child_entries_by_path = @entries_by_path.dig(*components)
+    raise HRX::Error.new("There is no directory at \"#{path}\"") unless child_entries_by_path
+    if child_entries_by_path.is_a?(LinkedList::Node)
+      raise HRX::Error.new("\"#{child_entries_by_path.data._relative(@root).path}\" is a file")
+    end
+
+    HRX::Archive._new_child(_absolute(path), @boundary_length, @entries, child_entries_by_path)
   end
 
   # Writes `content` to the file at `path`.
@@ -154,7 +204,7 @@ class HRX::Archive
     parent = components[0...-1].inject(@entries_by_path) do |hash, component|
       entry = hash[component]
       if entry.is_a?(LinkedList::Node)
-        raise HRX::Error.new("\"#{entry.data.path}\" is a file")
+        raise HRX::Error.new("\"#{entry.data._relative(@root).path}\" is a file")
       end
 
       # Even though both branches of this if are assignments, their return
@@ -174,12 +224,12 @@ class HRX::Archive
 
     if previous.is_a?(LinkedList::Node)
       comment = previous.data.comment if comment == :copy
-      previous.data = HRX::File.new(path, content, comment: comment)
+      previous.data = HRX::File.new(_absolute(path), content, comment: comment)
       return
     end
 
     comment = nil if comment == :copy
-    node = HRX::OrderedNode.new(HRX::File.new(path, content, comment: comment))
+    node = HRX::OrderedNode.new(HRX::File.new(_absolute(path), content, comment: comment))
     if nearest_dir.nil?
       @entries << node
     else
@@ -209,7 +259,7 @@ class HRX::Archive
     parent = components[0...-1].inject(@entries_by_path) do |hash, component|
       entry = hash[component]
       if entry.is_a?(LinkedList::Node)
-        raise HRX::Error.new("\"#{entry.data.path}\" is a file")
+        raise HRX::Error.new("\"#{entry.data._relative(@root).path}\" is a file")
       end
 
       if entry.nil?
@@ -267,17 +317,17 @@ class HRX::Archive
   def add(entry, before: nil, after: nil)
     raise ArgumentError.new("before and after may not both be passed") if before && after
 
-    node = HRX::OrderedNode.new(entry)
+    node = HRX::OrderedNode.new(entry._absolute(@root))
 
     path = entry.path.split("/")
     parent = path[0...-1].inject(@entries_by_path) do |hash, component|
       if hash[component].is_a?(LinkedList::Node)
-        raise HRX::Error.new("\"#{hash[component].data.path}\" defined twice")
+        raise HRX::Error.new("\"#{hash[component].data._relative(@root).path}\" defined twice")
       end
       hash[component] ||= {}
     end
 
-    if parent[path.last].is_a?(HRX::File)
+    if parent[path.last].is_a?(LinkedList::Node)
       raise HRX::Error.new("\"#{entry.path}\" defined twice")
     end
 
@@ -322,12 +372,17 @@ class HRX::Archive
         buffer << "\n" unless i == entries.length - 1
       end
     end
-    buffer << boundary << "\n" << last_comment << "\n" if last_comment
+    buffer << boundary << "\n" << last_comment if last_comment
 
     buffer.freeze
   end
 
   private
+
+  # Adds `@root` to the beginning of `path` if `@root` isn't `nil`.
+  def _absolute(path)
+    @root ? @root + path : path
+  end
 
   # Returns the LinkedList::Node at the given `path`, or `nil` if there is no
   # node at that path.

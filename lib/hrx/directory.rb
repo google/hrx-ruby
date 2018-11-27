@@ -45,14 +45,35 @@ class HRX::Directory
   #
   # :nodoc:
   def self._new_without_checks(path, comment)
-    file = allocate
-    file._initialize_without_checks(path, comment)
-    file
+    allocate.tap do |dir|
+      dir._initialize_without_checks(path, comment)
+    end
   end
 
   # Like #initialize, but doesn't verify that the arguments are valid.
   def _initialize_without_checks(path, comment)
     @comment = comment
     @path = path
+  end
+
+  # Returns a copy of this entry with the path modified to be relative to
+  # `root`.
+  #
+  # If `root` is `nil`, returns this as-is.
+  #
+  # :nodoc:
+  def _relative(root)
+    return self unless root
+    HRX::Directory._new_without_checks(HRX::Util.relative(root, path), comment)
+  end
+
+  # Returns a copy of this entry with `root` added tothe beginning of the path.
+  #
+  # If `root` is `nil`, returns this as-is.
+  #
+  # :nodoc:
+  def _absolute(root)
+    return self unless root
+    HRX::Directory._new_without_checks(root + path, comment)
   end
 end

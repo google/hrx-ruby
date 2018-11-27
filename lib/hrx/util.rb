@@ -45,6 +45,16 @@ module HRX::Util
       raise HRX::ParseError.new(message, line, column, file: file)
     end
 
+    # Returns `child` relative to `parent`.
+    #
+    # Assumes `parent` ends with `/`, and `child` is beneath `parent`.
+    #
+    # If `parent` is `nil`, returns `child` as-is.
+    def relative(parent, child)
+      return child unless parent
+      child[parent.length..-1]
+    end
+
     private
 
     # Scans a single HRX path component from `scanner`.

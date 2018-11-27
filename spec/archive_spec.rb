@@ -15,8 +15,6 @@
 
 require 'hrx'
 
-require_relative 'validates_path'
-
 RSpec.describe HRX::Archive do
   subject {HRX::Archive.new}
 
@@ -29,18 +27,24 @@ RSpec.describe HRX::Archive do
       it "fails for any path" do
         expect {subject.read("path")}.to raise_error(HRX::Error)
       end
+    end
 
-      context "#write" do
-        before(:each) {subject.write("path", "contents\n")}
+    context "#write" do
+      before(:each) {subject.write("path", "contents\n")}
 
-        it "adds a file to the end of the archive" do
-          expect(subject.entries.last.path).to be == "path"
-          expect(subject.entries.last.content).to be == "contents\n"
-        end
+      it "adds a file to the end of the archive" do
+        expect(subject.entries.last.path).to be == "path"
+        expect(subject.entries.last.content).to be == "contents\n"
+      end
 
-        it "adds a file that's readable by name" do
-          expect(subject.read("path")).to be == "contents\n"
-        end
+      it "adds a file that's readable by name" do
+        expect(subject.read("path")).to be == "contents\n"
+      end
+    end
+
+    context "#child_archive" do
+      it "fails for any path" do
+        expect {subject.child_archive("path")}.to raise_error(HRX::Error)
       end
     end
   end
@@ -166,6 +170,40 @@ END
 
       it "returns the contents of a file in a directory" do
         expect(subject.read("super/sub")).to be == "sub contents\n"
+      end
+    end
+
+    context "#child_archive" do
+      it "throws for an empty path" do
+        expect {subject.child_archive("")}.to raise_error(HRX::Error, 'There is no directory at ""')
+      end
+
+      it "throws for a path that's not in the archive" do
+        expect {subject.child_archive("non/existent/dir")}.to(
+          raise_error(HRX::Error, 'There is no directory at "non/existent/dir"'))
+      end
+
+      it "throws for a file" do
+        expect {subject.child_archive("super/sub")}.to(
+          raise_error(HRX::Error, '"super/sub" is a file'))
+      end
+
+      context "for an explicit directory with no children" do
+        let(:child) {subject.child_archive("dir")}
+
+        it "returns an empty archive" do
+          expect(child.entries).to be_empty
+        end
+
+        it "serializes to an empty string" do
+          expect(child.to_hrx).to be_empty
+        end
+
+        it "doesn't return the root directory" do
+          expect(child[""]).to be_nil
+          expect(child["/"]).to be_nil
+          expect(child["dir"]).to be_nil
+        end
       end
     end
 
