@@ -11,6 +11,9 @@ Gem::Specification.new do |s|
 
   s.files = `git ls-files -z`.split("\x0")
 
-  s.add_runtime_dependency "linked-list", "~> 0.0.12"
+  # Depend on this exact version because we're relying on its private API until
+  # spectator/linked-list#5 is fixed.
+  s.add_runtime_dependency "linked-list", "0.0.12"
+
   s.required_ruby_version = ">= 2.3.0"
 end

@@ -299,6 +299,78 @@ END
       end
     end
 
+    context "#delete" do
+      it "throws an error if the file doesn't exist" do
+        expect {subject.delete("nothing")}.to(
+          raise_error(HRX::Error, '"nothing" doesn\'t exist'))
+      end
+
+      it "throws an error if the file is in a directory that doesn't exist" do
+        expect {subject.delete("does/not/exist")}.to(
+          raise_error(HRX::Error, '"does/not/exist" doesn\'t exist'))
+      end
+
+      it "throws an error if a file has a trailing slash" do
+        expect {subject.delete("file/")}.to raise_error(HRX::Error, '"file/" is a file')
+      end
+
+      it "refuses to delete an implicit directory" do
+        expect {subject.delete("super/")}.to(
+          raise_error(HRX::Error, '"super/" is not an explicit directory and recursive isn\'t set'))
+      end
+
+      it "deletes a top-level file" do
+        length_before = subject.entries.length
+        subject.delete("file")
+        expect(subject["file"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 1
+      end
+
+      it "deletes a nested file" do
+        length_before = subject.entries.length
+        subject.delete("super/sub")
+        expect(subject["super/sub"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 1
+      end
+
+      it "deletes an explicit directory without a slash" do
+        length_before = subject.entries.length
+        subject.delete("dir")
+        expect(subject["dir/"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 1
+      end
+
+      it "deletes an explicit directory with a slash" do
+        length_before = subject.entries.length
+        subject.delete("dir/")
+        expect(subject["dir/"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 1
+      end
+
+      it "deletes an explicit directory with children" do
+        length_before = subject.entries.length
+        subject.delete("very/deeply")
+        expect(subject["very/deeply"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 1
+      end
+
+      it "recursively deletes an implicit directory" do
+        length_before = subject.entries.length
+        subject.delete("very/", recursive: true)
+        expect(subject["very/deeply"]).to be_nil
+        expect(subject["very/deeply/nested/file"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 2
+      end
+
+      it "recursively deletes an explicit directory" do
+        length_before = subject.entries.length
+        subject.delete("very/deeply", recursive: true)
+        expect(subject["very/deeply"]).to be_nil
+        expect(subject["very/deeply/nested/file"]).to be_nil
+        expect(subject.entries.length).to be == length_before - 2
+      end
+    end
+
     context "#add" do
       it "adds a file to the end of the archive" do
         file = HRX::File.new("other", "")

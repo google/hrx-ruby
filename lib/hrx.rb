@@ -19,6 +19,7 @@ require 'strscan'
 require_relative 'hrx/file'
 require_relative 'hrx/directory'
 require_relative 'hrx/error'
+require_relative 'hrx/linked_list'
 require_relative 'hrx/ordered_node'
 require_relative 'hrx/parse_error'
 
@@ -100,7 +101,7 @@ class HRX
     end
 
     @boundary_length = boundary_length
-    @entries = LinkedList::List.new
+    @entries = HRX::List.new
     @entries_by_path = {}
   end
 
@@ -193,6 +194,58 @@ class HRX
 
     parent[components.last] = node
     nil
+  end
+
+  # Deletes the file or directory at `path`.
+  #
+  # Throws an HRX::Error if there's no entry at `path`.
+  def delete(path, recursive: false)
+    # The outermost parent directory hash that contains only the entry at
+    # `path`, from which key_to_delete should be deleted
+    parent_to_delete_from = nil
+    key_to_delete = nil
+
+    components = path.split("/")
+    parent = components[0...-1].inject(@entries_by_path) do |hash, component|
+      entry = hash[component]
+      if entry.is_a?(LinkedList::Node)
+        raise HRX::Error.new("\"#{entry.data.path}\" is a file")
+      end
+
+      if entry.nil?
+        raise HRX::Error.new("\"#{path}\" doesn't exist")
+      elsif entry.size == 1
+        parent_to_delete_from ||= hash
+        key_to_delete ||= component
+      else
+        parent_to_delete_from = nil
+        key_to_delete = nil
+      end
+
+      hash[component] ||= {}
+    end
+    parent_to_delete_from ||= parent
+    key_to_delete ||= components.last
+
+    node = parent[components.last]
+    if node.nil?
+      raise HRX::Error.new("\"#{path}\" doesn't exist")
+    elsif node.is_a?(Hash)
+      if recursive
+        _each_entry(node) {|n| @entries.unlink(n)}
+      else
+        unless node = node[:dir]
+          raise HRX::Error.new("\"#{path}\" is not an explicit directory and recursive isn't set")
+        end
+        @entries.unlink(node)
+      end
+    elsif path.end_with?("/")
+      raise HRX::Error.new("\"#{path}\" is a file")
+    else
+      @entries.unlink(node)
+    end
+
+    parent_to_delete_from.delete(key_to_delete)
   end
 
   # Sets the text of the last comment in the document.
