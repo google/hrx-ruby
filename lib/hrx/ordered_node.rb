@@ -23,6 +23,8 @@ require 'linked-list'
 #
 # We use this to efficiently determine where to insert a new file relative to
 # existing files with HRX#write.
+#
+# :nodoc:
 class HRX::OrderedNode < LinkedList::Node
   def initialize(data)
     super
