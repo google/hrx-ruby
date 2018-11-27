@@ -46,8 +46,6 @@ class HRX::OrderedNode < LinkedList::Node
     @order ||=
       if other.nil?
         nil
-      elsif other.order.nil?
-        0
       elsif other.prev
         (other.prev.order + other.order) / 2.0
       else
@@ -60,8 +58,6 @@ class HRX::OrderedNode < LinkedList::Node
     @order ||=
       if other.nil?
         nil
-      elsif other.order.nil?
-        0
       elsif other.next&.order
         (other.next.order + other.order) / 2.0
       else
