@@ -41,6 +41,15 @@ END
       expect(archive.entries.last.path).to be == "👭"
     end
 
+    it "parses a file as UTF-8 despite Encoding.default_external" do
+      File.write("#{temp_dir}/archive.hrx", "<===> föö\n", mode: "wb")
+
+      with_external_encoding("iso-8859-1") do
+        archive = HRX::Archive.load("#{temp_dir}/archive.hrx")
+        expect(archive.entries.last.path).to be == "föö"
+      end
+    end
+
     it "fails to parse a file that's invalid UTF-8" do
       File.write("#{temp_dir}/archive.hrx", "<===> \xc3\x28\n".b, mode: "wb")
       expect {HRX::Archive.load("#{temp_dir}/archive.hrx")}.to raise_error(EncodingError)
@@ -757,6 +766,39 @@ END
 <==> file
 <=>
 END
+      end
+    end
+  end
+
+  context "#write!" do
+    include_context "uses temp dir"
+
+    it "saves the archive to disk" do
+      subject << HRX::File.new("file", "file contents\n")
+      subject << HRX::File.new("super/sub", "sub contents\n")
+      subject.write!("#{temp_dir}/archive.hrx")
+
+      expect(File.read("#{temp_dir}/archive.hrx", mode: "rb")).to be == <<END
+<===> file
+file contents
+
+<===> super/sub
+sub contents
+END
+    end
+
+    it "saves the archive as UTF-8" do
+      subject << HRX::File.new("👭", "")
+      subject.write!("#{temp_dir}/archive.hrx")
+      expect(File.read("#{temp_dir}/archive.hrx", mode: "rb")).to be == "<===> \xF0\x9F\x91\xAD\n".b
+    end
+
+    it "saves the archive as UTF-8 despite Encoding.default_external" do
+      with_external_encoding("iso-8859-1") do
+        subject << HRX::File.new("föö", "")
+        subject.write!("#{temp_dir}/archive.hrx")
+        expect(File.read("#{temp_dir}/archive.hrx", mode: "rb")).to(
+          be == "<===> f\xC3\xB6\xC3\xB6\n".b)
       end
     end
   end

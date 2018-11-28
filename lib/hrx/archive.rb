@@ -388,6 +388,11 @@ class HRX::Archive
     buffer.freeze
   end
 
+  # Writes this archive to disk at `file`.
+  def write!(file)
+    File.write(file, to_hrx, mode: "wb")
+  end
+
   private
 
   # Adds `@root` to the beginning of `path` if `@root` isn't `nil`.

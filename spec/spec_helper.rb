@@ -12,7 +12,30 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+require 'stringio'
+
+module Helpers
+  # Runs a block with warnings disabled.
+  def silence_warnings
+    old_stderr = $stderr
+    $stderr = StringIO.new
+    yield
+  ensure
+    $stderr = old_stderr if old_stderr
+  end
+
+  # Runs a block with `encoding` as Encoding.default_external.
+  def with_external_encoding(encoding)
+    old_encoding = Encoding.default_external
+    silence_warnings {Encoding.default_external = "iso-8859-1"}
+  ensure
+    silence_warnings {Encoding.default_external = old_encoding if old_encoding}
+  end
+end
+
 RSpec.configure do |config|
+  config.include Helpers
+
   config.expect_with :rspec do |expectations|
     # This option will default to `true` in RSpec 4. It makes the `description`
     # and `failure_message` of custom matchers include text for helper methods
