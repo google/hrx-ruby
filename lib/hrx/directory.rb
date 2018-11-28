@@ -30,9 +30,8 @@ class HRX::Directory
 
   # Creates a new file with the given paths and comment.
   #
-  # Throws an HRX::ParseError if `path` is invalid, or an
-  # Encoding::UndefinedConversionError if either argument can't be converted to
-  # UTF-8.
+  # Throws an HRX::ParseError if `path` is invalid, or an EncodingError if
+  # either argument can't be converted to UTF-8.
   #
   # The `path` may or may not end with a `/`. If it doesn't a `/` will be added.
   def initialize(path, comment: nil)

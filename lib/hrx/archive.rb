@@ -296,8 +296,7 @@ class HRX::Archive
 
   # Sets the text of the last comment in the document.
   #
-  # Throws an Encoding::UndefinedConversionError if `comment` can't be converted
-  # to UTF-8.
+  # Throws an EncodingError if `comment` can't be converted to UTF-8.
   def last_comment=(comment)
     @last_comment = comment.encode("UTF-8")
   end

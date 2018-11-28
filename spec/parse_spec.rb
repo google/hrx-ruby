@@ -30,7 +30,7 @@ RSpec.describe HRX, ".parse" do
   it "requires the file to be convetible to UTF-8" do
     expect do
       HRX::Archive.parse("<===> \xc3\x28\n".b)
-    end.to raise_error(Encoding::UndefinedConversionError)
+    end.to raise_error(EncodingError)
   end
 
   context "with a single file" do

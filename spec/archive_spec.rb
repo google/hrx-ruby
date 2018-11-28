@@ -78,7 +78,7 @@ RSpec.describe HRX::Archive do
     it "requires the comment to be convertible to UTF-8" do
       expect do
         subject.last_comment = "\xc3\x28".b
-      end.to raise_error(Encoding::UndefinedConversionError)
+      end.to raise_error(EncodingError)
     end
 
     it "converts a comment to UTF-8" do

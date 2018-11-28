@@ -34,9 +34,8 @@ class HRX::File
 
   # Creates a new file with the given path, content, and comment.
   #
-  # Throws an HRX::ParseError if `path` is invalid, or an
-  # Encoding::UndefinedConversionError if any argument can't be converted to
-  # UTF-8.
+  # Throws an HRX::ParseError if `path` is invalid, or an EncodingError if any
+  # argument can't be converted to UTF-8.
   def initialize(path, content, comment: nil)
     @comment = comment && comment.encode("UTF-8")
     @path = HRX::Util.scan_path(StringScanner.new(path.encode("UTF-8")))
