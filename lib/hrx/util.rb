@@ -14,8 +14,7 @@
 
 require_relative 'parse_error'
 
-# :nodoc:
-module HRX::Util
+module HRX::Util # :nodoc:
   class << self
     # Scans a single HRX path from `scanner` and returns it.
     #

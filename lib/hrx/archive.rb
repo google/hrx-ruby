@@ -91,9 +91,7 @@ class HRX::Archive
     # outermost ancestor. The `entries` is the outermost ancestor's entries
     # list. The `entries_by_path` is the subtree of the outermost ancestor's
     # entries tree that corresponds to this child.
-    #
-    # :nodoc:
-    def _new_child(root, boundary_length, entries, entries_by_path)
+    def _new_child(root, boundary_length, entries, entries_by_path) # :nodoc:
       allocate.tap do |archive|
         archive._initialize_child(root, boundary_length, entries, entries_by_path)
       end
@@ -121,9 +119,7 @@ class HRX::Archive
   end
 
   # See _new_child.
-  #
-  # :nodoc:
-  def _initialize_child(root, boundary_length, entries, entries_by_path)
+  def _initialize_child(root, boundary_length, entries, entries_by_path) # :nodoc:
     @root = root.end_with?("/") ? root : root + "/"
     @boundary_length = boundary_length
     @entries = entries

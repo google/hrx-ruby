@@ -49,16 +49,14 @@ class HRX::File
   end
 
   # Like ::new, but doesn't verify that the arguments are valid.
-  #
-  # :nodoc:
-  def self._new_without_checks(path, content, comment)
+  def self._new_without_checks(path, content, comment) # :nodoc:
     allocate.tap do |file|
       file._initialize_without_checks(path, content, comment)
     end
   end
 
   # Like #initialize, but doesn't verify that the arguments are valid.
-  def _initialize_without_checks(path, content, comment)
+  def _initialize_without_checks(path, content, comment) # :nodoc:
     @comment = comment
     @path = path
     @content = content
@@ -68,9 +66,7 @@ class HRX::File
   # `root`.
   #
   # If `root` is `nil`, returns this as-is.
-  #
-  # :nodoc:
-  def _relative(root)
+  def _relative(root) # :nodoc:
     return self unless root
     HRX::File._new_without_checks(HRX::Util.relative(root, path), content, comment)
   end
@@ -78,9 +74,7 @@ class HRX::File
   # Returns a copy of this entry with `root` added tothe beginning of the path.
   #
   # If `root` is `nil`, returns this as-is.
-  #
-  # :nodoc:
-  def _absolute(root)
+  def _absolute(root) # :nodoc:
     return self unless root
     HRX::File._new_without_checks(root + path, content, comment)
   end
