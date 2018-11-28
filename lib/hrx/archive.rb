@@ -29,6 +29,9 @@ class HRX::Archive
     # Parses an HRX file's text.
     #
     # If `file` is passed, it's used as the file name for error reporting.
+    #
+    # Throws an HRX::ParseError if `text` isn't valid HRX. Throws an
+    # EncodingError if `text` can't be converted to UTF-8.
     def parse(text, file: nil)
       text = text.encode("UTF-8")
       return new if text.empty?
@@ -83,6 +86,19 @@ class HRX::Archive
           HRX::Util.parse_error(scanner, e.message, file: file)
         end
       end
+    end
+
+    # Loads an HRX::Archive from the given `file`.
+    #
+    # Throws an HRX::ParseError if the file isn't valid HRX. Throws an
+    # EncodingError if the file isn't valid UTF-8.
+    def load(file)
+      text = File.read(file, mode: "rb", encoding: "UTF-8")
+
+      # If the encoding is invalid, force an InvalidByteSequenceError.
+      text.encode("UTF-16") unless text.valid_encoding?
+
+      parse(text, file: file)
     end
 
     # Creates an archive as a child of an existing archive.

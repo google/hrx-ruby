@@ -13,10 +13,44 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+require 'rspec/temp_dir'
+
 require 'hrx'
 
 RSpec.describe HRX::Archive do
   subject {HRX::Archive.new}
+
+  context "::load" do
+    include_context "uses temp dir"
+
+    it "parses a file from disk" do
+      File.write("#{temp_dir}/archive.hrx", <<END, mode: "wb")
+<===> file
+contents
+END
+
+      archive = HRX::Archive.load("#{temp_dir}/archive.hrx")
+      expect(archive.entries.length).to be == 1
+      expect(archive.entries.last.path).to be == "file"
+      expect(archive.entries.last.content).to be == "contents\n"
+    end
+
+    it "parses a file as UTF-8" do
+      File.write("#{temp_dir}/archive.hrx", "<===> 👭\n", mode: "wb")
+      archive = HRX::Archive.load("#{temp_dir}/archive.hrx")
+      expect(archive.entries.last.path).to be == "👭"
+    end
+
+    it "fails to parse a file that's invalid UTF-8" do
+      File.write("#{temp_dir}/archive.hrx", "<===> \xc3\x28\n".b, mode: "wb")
+      expect {HRX::Archive.load("#{temp_dir}/archive.hrx")}.to raise_error(EncodingError)
+    end
+
+    it "includes the filename in parse errors" do
+      File.write("#{temp_dir}/archive.hrx", "wrong", mode: "wb")
+      expect {HRX::Archive.load("#{temp_dir}/archive.hrx")}.to raise_error(HRX::ParseError, /archive\.hrx/)
+    end
+  end
 
   context "when first initialized" do
     it "has no entries" do

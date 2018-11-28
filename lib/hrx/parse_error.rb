@@ -29,6 +29,7 @@ class HRX::ParseError < HRX::Error
     super(message)
     @line = line
     @column = column
+    @file = file
   end
 
   def to_s
