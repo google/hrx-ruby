@@ -19,7 +19,6 @@ require 'strscan'
 require_relative 'directory'
 require_relative 'error'
 require_relative 'file'
-require_relative 'linked_list'
 require_relative 'ordered_node'
 require_relative 'parse_error'
 
@@ -130,7 +129,7 @@ class HRX::Archive
 
     @root = nil
     @boundary_length = boundary_length
-    @entries = HRX::List.new
+    @entries = LinkedList::List.new
     @entries_by_path = {}
   end
 
@@ -294,17 +293,17 @@ class HRX::Archive
       raise HRX::Error.new("\"#{path}\" doesn't exist")
     elsif node.is_a?(Hash)
       if recursive
-        _each_entry(node) {|n| @entries.unlink(n)}
+        _each_entry(node) {|n| @entries.delete(n)}
       else
         unless node = node[:dir]
           raise HRX::Error.new("\"#{path}\" is not an explicit directory and recursive isn't set")
         end
-        @entries.unlink(node)
+        @entries.delete(node)
       end
     elsif path.end_with?("/")
       raise HRX::Error.new("\"#{path}\" is a file")
     else
-      @entries.unlink(node)
+      @entries.delete(node)
     end
 
     parent_to_delete_from.delete(key_to_delete)
