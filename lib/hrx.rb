@@ -12,6 +12,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+# The parent module for all HRX classes. See the README for more information and
+# usage examples.
+#
+# Parse an archive from a string with HRX::Archive.parse, load it from disk with
+# HRX::Archive.load, or create an empty archive with HRX::Archive.new.
 module HRX; end
 
 require_relative 'hrx/archive'

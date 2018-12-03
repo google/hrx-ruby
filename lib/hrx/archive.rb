@@ -23,6 +23,9 @@ require_relative 'ordered_node'
 require_relative 'parse_error'
 
 # An HRX archive.
+#
+# Parse an archive from a string with ::parse, load it from disk with ::load, or
+# create an empty archive with ::new.
 class HRX::Archive
   class << self
     # Parses an HRX file's text.
