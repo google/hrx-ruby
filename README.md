@@ -1,4 +1,4 @@
-# HRX (Human Archive)
+# HRX (Human Readable Archive)
 
 This gem is a parser and serializer for the [HRX format][].
 
