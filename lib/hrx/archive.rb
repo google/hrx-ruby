@@ -170,6 +170,15 @@ class HRX::Archive
     _find_node(path)&.data&._relative(@root)
   end
 
+  # Returns all HRX::File or HRX::Directory objects in this archive that match
+  # `pattern`. See also Dir::glob. This always uses the option File::FNM_PATHNAME.
+  #
+  # This only returns HRX::Directory objects if `pattern` ends in `/` or
+  # includes `**`.
+  def glob(pattern, flags = 0)
+    entries.select {|e| File.fnmatch?(pattern, e.path, flags | File::FNM_PATHNAME)}
+  end
+
   # Returns the contents of the file at `path` in the archive.
   #
   # Throws an HRX::Error if there is no file at `path`, or if `path` is invalid

@@ -216,6 +216,72 @@ END
       end
     end
 
+    context "#glob" do
+      it "returns nothing for an empty glob" do
+        expect(subject.glob("")).to be_empty
+      end
+
+      it "returns nothing for a path that's not in the archive" do
+        expect(subject.glob("non/existent/file")).to be_empty
+      end
+
+      it "doesn't return implicit directories" do
+        expect(subject.glob("super")).to be_empty
+      end
+
+      it "doesn't return a file with a slash" do
+        expect(subject.glob("super/sub/")).to be_empty
+      end
+
+      it "doesn't return an explicit directory without a leading slash" do
+        expect(subject.glob("dir")).to be_empty
+      end
+
+      it "returns a file at the root level" do
+        result = subject.glob("file")
+        expect(result.length).to be == 1
+        expect(result.first.path).to be == "file"
+      end
+
+      it "returns a file in a directory" do
+        result = subject.glob("super/sub")
+        expect(result.length).to be == 1
+        expect(result.first.path).to be == "super/sub"
+      end
+
+      it "returns an explicit directory" do
+        result = subject.glob("dir/")
+        expect(result.length).to be == 1
+        expect(result.first.path).to be == "dir/"
+      end
+
+      it "returns all matching files at the root level" do
+        result = subject.glob("*")
+        expect(result.length).to be == 2
+        expect(result.first.path).to be == "file"
+        expect(result.last.path).to be == "last"
+      end
+
+      it "returns all matching files in a directory" do
+        result = subject.glob("super/*")
+        expect(result.length).to be == 1
+        expect(result.first.path).to be == "super/sub"
+      end
+
+      it "returns all matching entries recursively in a directory" do
+        result = subject.glob("very/**/*")
+        expect(result.length).to be == 2
+        expect(result.first.path).to be == "very/deeply/"
+        expect(result.last.path).to be == "very/deeply/nested/file"
+      end
+
+      it "respects glob flags" do
+        result = subject.glob("FILE", File::FNM_CASEFOLD)
+        expect(result.length).to be == 1
+        expect(result.first.path).to be == "file"
+      end
+    end
+
     context "#child_archive" do
       it "throws for an empty path" do
         expect {subject.child_archive("")}.to raise_error(HRX::Error, 'There is no directory at ""')
