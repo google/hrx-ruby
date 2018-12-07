@@ -20,16 +20,22 @@ class HRX::File
   # preceding comment.
   #
   # HRX comments are always encoded as UTF-8.
+  #
+  # This string is frozen.
   attr_reader :comment
 
   # The path to this file, relative to the archive's root.
   #
   # HRX paths are always `/`-separated and always encoded as UTF-8.
+  #
+  # This string is frozen.
   attr_reader :path
 
   # The contents of the file.
   #
   # HRX file contents are always encoded as UTF-8.
+  #
+  # This string is frozen.
   attr_reader :content
 
   # Creates a new file with the given path, content, and comment.
@@ -37,14 +43,14 @@ class HRX::File
   # Throws an HRX::ParseError if `path` is invalid, or an EncodingError if any
   # argument can't be converted to UTF-8.
   def initialize(path, content, comment: nil)
-    @comment = comment && comment.encode("UTF-8")
-    @path = HRX::Util.scan_path(StringScanner.new(path.encode("UTF-8")))
+    @comment = comment&.clone&.encode("UTF-8")&.freeze
+    @path = HRX::Util.scan_path(StringScanner.new(path.encode("UTF-8"))).freeze
 
     if @path.end_with?("/")
       raise HRX::ParseError.new("path \"#{path}\" may not end with \"/\"", 1, path.length - 1)
     end
 
-    @content = content.encode("UTF-8")
+    @content = content.clone.encode("UTF-8").freeze
   end
 
   # Like ::new, but doesn't verify that the arguments are valid.
@@ -56,9 +62,9 @@ class HRX::File
 
   # Like #initialize, but doesn't verify that the arguments are valid.
   def _initialize_without_checks(path, content, comment) # :nodoc:
-    @comment = comment
-    @path = path
-    @content = content
+    @comment = comment.freeze
+    @path = path.freeze
+    @content = content.freeze
   end
 
   # Returns a copy of this entry with the path modified to be relative to

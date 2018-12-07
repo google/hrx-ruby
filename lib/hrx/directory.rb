@@ -20,12 +20,16 @@ class HRX::Directory
   # preceding comment.
   #
   # HRX file contents are always encoded as UTF-8.
+  #
+  # This string is frozen.
   attr_reader :comment
 
   # The path to this file, relative to the archive's root, including the
   # trailing `/`.
   #
   # HRX paths are always `/`-separated and always encoded as UTF-8.
+  #
+  # This string is frozen.
   attr_reader :path
 
   # Creates a new file with the given paths and comment.
@@ -35,9 +39,10 @@ class HRX::Directory
   #
   # The `path` may or may not end with a `/`. If it doesn't a `/` will be added.
   def initialize(path, comment: nil)
-    @comment = comment && comment.encode("UTF-8")
+    @comment = comment&.clone&.encode("UTF-8")&.freeze
     @path = HRX::Util.scan_path(StringScanner.new(path.encode("UTF-8")))
-    @path += "/" unless @path.end_with?("/")
+    @path << "/" unless @path.end_with?("/")
+    @path.freeze
   end
 
   # Like ::new, but doesn't verify that the arguments are valid.
@@ -49,8 +54,8 @@ class HRX::Directory
 
   # Like #initialize, but doesn't verify that the arguments are valid.
   def _initialize_without_checks(path, comment) # :nodoc:
-    @comment = comment
-    @path = path
+    @comment = comment.freeze
+    @path = path.freeze
   end
 
   # Returns a copy of this entry with the path modified to be relative to

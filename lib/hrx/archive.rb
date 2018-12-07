@@ -179,7 +179,8 @@ class HRX::Archive
     entries.select {|e| File.fnmatch?(pattern, e.path, flags | File::FNM_PATHNAME)}
   end
 
-  # Returns the contents of the file at `path` in the archive.
+  # Returns the contents of the file at `path` in the archive as a frozen
+  # string.
   #
   # Throws an HRX::Error if there is no file at `path`, or if `path` is invalid
   # (including if it ends with `/`).
