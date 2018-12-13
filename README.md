@@ -32,3 +32,4 @@ archive << HRX::File.new("dir/newer.txt", "Newer file contents!\n")
 archive.write!("path/to/archive.hrx")
 ```
 
+This is not an officially supported Google product.
