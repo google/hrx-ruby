@@ -24,7 +24,9 @@ Gem::Specification.new do |s|
   s.email = "nweiz@google.com"
 
   s.files = `git ls-files -z`.split("\x0")
+  s.executables << "hrx"
 
   s.add_runtime_dependency "linked-list", "~> 0.0.13"
+  s.add_runtime_dependency "thor", "~> 0.20"
   s.required_ruby_version = ">= 2.3.0"
 end
