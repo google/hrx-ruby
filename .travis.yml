@@ -1,0 +1,17 @@
+language: ruby
+rvm:
+  - 2.3
+  - 2.4
+  - 2.5
+  - 2.6
+
+# Only building master means that we don't run two builds for each pull request.
+branches:
+  only:
+    - master
+    # Feature branches beginning with "feature."
+    - "/^feature\\..*/"
+    # Semantic version tags and legacy branches of the form "1.2.x".
+    - "/^\\d+\\.\\d+\\.(\\d+([+-].*)?|x)$/"
+
+script: bundle exec rspec
