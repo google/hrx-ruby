@@ -12,21 +12,24 @@ class HRX::CLI < Thor
   def create(destination, *paths)
     root = _normalize(Pathname.new(options[:root] || Dir.pwd))
 
-    archive = HRX::Archive.new
+    entries = []
     paths.each do |p|
       begin
-        archive << _file_for(p, root)
+        entries << _file_for(p, root)
       rescue SystemCallError
         raise Thor::Error.new("#{p} doesn't exist!") unless File.directory?(p)
 
         # If reading from a file fails, try listing a directory.
         Dir.glob("#{p}/**/*", File::FNM_DOTMATCH).each do |f|
-          archive << _file_for(f, root) if File.file?(f)
+          entries << _file_for(f, root) if File.file?(f)
         end
       end
     end
 
-    archive.write!(destination)
+    entries.sort_by! {|e| e.path}
+    HRX::Archive.new.tap do |a|
+      entries.each {|e| a << e}
+    end.write!(destination)
   rescue SystemCallError => e
     raise Thor::Error.new(e.message)
   end
