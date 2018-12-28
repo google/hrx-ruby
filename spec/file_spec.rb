@@ -27,15 +27,33 @@ RSpec.describe HRX::File, "#initialize" do
     end.to raise_error(EncodingError)
   end
 
+  it "requires the path to be valid UTF-8" do
+    expect do
+      HRX::File.new("\xc3\x28", "")
+    end.to raise_error(EncodingError)
+  end
+
   it "requires the content to be convertible to UTF-8" do
     expect do
       HRX::File.new("file", "\xc3\x28".b)
     end.to raise_error(EncodingError)
   end
 
+  it "requires the content to be valid UTF-8" do
+    expect do
+      HRX::File.new("file", "\xc3\x28")
+    end.to raise_error(EncodingError)
+  end
+
   it "requires the comment to be convertible to UTF-8" do
     expect do
       HRX::File.new("file", "", comment: "\xc3\x28".b)
+    end.to raise_error(EncodingError)
+  end
+
+  it "requires the comment to be valid UTF-8" do
+    expect do
+      HRX::File.new("file", "", comment: "\xc3\x28")
     end.to raise_error(EncodingError)
   end
 

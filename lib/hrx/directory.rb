@@ -39,8 +39,8 @@ class HRX::Directory
   #
   # The `path` may or may not end with a `/`. If it doesn't a `/` will be added.
   def initialize(path, comment: nil)
-    @comment = comment&.clone&.encode("UTF-8")&.freeze
-    @path = HRX::Util.scan_path(StringScanner.new(path.encode("UTF-8")))
+    @comment = HRX::Util.sanitize_encoding(comment&.clone)&.freeze
+    @path = HRX::Util.scan_path(StringScanner.new(HRX::Util.sanitize_encoding(path)))
     @path << "/" unless @path.end_with?("/")
     @path.freeze
   end

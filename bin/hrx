@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+
+require 'pathname'
+require 'rubygems'
+require 'thor'
+
+require 'hrx'
+
+class HRX::CLI < Thor
+  desc "create <archive> <paths>...", "Create a new archive"
+  option :root, aliases: :r, type: :string, banner: "Root of the archive"
+  def create(destination, *paths)
+    root = _normalize(Pathname.new(options[:root] || Dir.pwd))
+
+    entries = []
+    paths.each do |p|
+      begin
+        entries << _file_for(p, root)
+      rescue SystemCallError
+        raise Thor::Error.new("#{p} doesn't exist!") unless File.directory?(p)
+
+        # If reading from a file fails, try listing a directory.
+        Dir.glob("#{p}/**/*", File::FNM_DOTMATCH).each do |f|
+          entries << _file_for(f, root) if File.file?(f)
+        end
+      end
+    end
+
+    entries.sort_by! {|e| e.path}
+    HRX::Archive.new.tap do |a|
+      entries.each {|e| a << e}
+    end.write!(destination)
+  rescue SystemCallError => e
+    raise Thor::Error.new(e.message)
+  end
+
+  def self.exit_on_failure?
+    true
+  end
+
+  private
+
+  # Returns an HRX::File for the file at `path`, relative to `root`.
+  def _file_for(path, root)
+    contents = File.read(path, encoding: 'binary')
+    relative = _normalize(Pathname.new(path)).relative_path_from(root).to_s
+    relative.gsub!("\\", "/") if Gem.win_platform?
+
+    if relative.start_with?("../")
+      raise Thor::Error.new("#{path} is not in #{options[:root] || 'the current directory'}")
+    end
+
+    HRX::File.new(relative, contents)
+  rescue HRX::Error => e
+    raise Thor::Error.new("Error archiving #{path}: #{e.message}")
+  rescue EncodingError => e
+    raise Thor::Error.new("Invalid UTF-8 in #{path}: #{e.message}")
+  end
+
+  # Ensures that `pathname` is absolute and doesn't contain `..`.
+  def _normalize(pathname)
+    return pathname.cleanpath if pathname.absolute?
+    (Pathname.new(Dir.pwd) + pathname).cleanpath
+  end
+end
+
+HRX::CLI.start(ARGV) if __FILE__ == $0

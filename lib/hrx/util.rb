@@ -16,6 +16,21 @@ require_relative 'parse_error'
 
 module HRX::Util # :nodoc:
   class << self
+    # Returns `string` as a valid and UTF-8 encoded if possible, or throws an
+    # error otherwise.
+    #
+    # Returns `nil` for `nil`.
+    def sanitize_encoding(string)
+      return if string.nil?
+
+      string = string.encode("UTF-8")
+      return string if string.valid_encoding?
+
+      # If the string isn't valid UTF-8, re-encode it so it throws a useful
+      # error message.
+      string.b.encode("UTF-8")
+    end
+
     # Scans a single HRX path from `scanner` and returns it.
     #
     # Throws an ArgumentError if no valid path is available to scan. If

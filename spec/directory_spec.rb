@@ -27,9 +27,21 @@ RSpec.describe HRX::Directory, "#initialize" do
     end.to raise_error(EncodingError)
   end
 
+  it "requires the path to be valid UTF-8" do
+    expect do
+      HRX::Directory.new("\xc3\x28")
+    end.to raise_error(EncodingError)
+  end
+
   it "requires the comment to be convertible to UTF-8" do
     expect do
       HRX::Directory.new("dir", comment: "\xc3\x28".b)
+    end.to raise_error(EncodingError)
+  end
+
+  it "requires the comment to be valid UTF-8" do
+    expect do
+      HRX::Directory.new("dir", comment: "\xc3\x28")
     end.to raise_error(EncodingError)
   end
 

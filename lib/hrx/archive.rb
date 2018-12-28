@@ -326,7 +326,7 @@ class HRX::Archive
   #
   # Throws an EncodingError if `comment` can't be converted to UTF-8.
   def last_comment=(comment)
-    @last_comment = comment.encode("UTF-8")
+    @last_comment = HRX::Util.sanitize_encoding(comment)
   end
 
   # Adds an HRX::File or HRX::Directory to this archive.
