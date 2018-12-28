@@ -43,14 +43,14 @@ class HRX::File
   # Throws an HRX::ParseError if `path` is invalid, or an EncodingError if any
   # argument can't be converted to UTF-8.
   def initialize(path, content, comment: nil)
-    @comment = comment&.clone&.encode("UTF-8")&.freeze
-    @path = HRX::Util.scan_path(StringScanner.new(path.encode("UTF-8"))).freeze
+    @comment = HRX::Util.sanitize_encoding(comment&.clone)&.freeze
+    @path = HRX::Util.scan_path(StringScanner.new(HRX::Util.sanitize_encoding(path))).freeze
 
     if @path.end_with?("/")
       raise HRX::ParseError.new("path \"#{path}\" may not end with \"/\"", 1, path.length - 1)
     end
 
-    @content = content.clone.encode("UTF-8").freeze
+    @content = HRX::Util.sanitize_encoding(content.clone).freeze
   end
 
   # Like ::new, but doesn't verify that the arguments are valid.
