@@ -32,4 +32,9 @@ archive << HRX::File.new("dir/newer.txt", "Newer file contents!\n")
 archive.write!("path/to/archive.hrx")
 ```
 
+## Executable
+
+This gem also comes with an `hrx` command-line executable. Use `hrx help` to
+learn about what it can do!
+
 This is not an officially supported Google product.
