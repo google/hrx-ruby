@@ -7,8 +7,8 @@ require 'thor'
 require 'hrx'
 
 class HRX::CLI < Thor
-  desc "create <archive> <paths>...", "Create a new archive"
-  option :root, aliases: :r, type: :string, banner: "Root of the archive"
+  desc 'create <archive> <paths>...', 'Create a new archive'
+  option :root, aliases: :r, type: :string, banner: 'Root of the archive'
   def create(destination, *paths)
     root = _normalize(Pathname.new(options[:root] || Dir.pwd))
 
@@ -46,7 +46,7 @@ class HRX::CLI < Thor
     relative = _normalize(Pathname.new(path)).relative_path_from(root).to_s
     relative.gsub!("\\", "/") if Gem.win_platform?
 
-    if relative.start_with?("../")
+    if relative.start_with?('../')
       raise Thor::Error.new("#{path} is not in #{options[:root] || 'the current directory'}")
     end
 
