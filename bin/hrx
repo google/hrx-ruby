@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'pathname'
+require 'fileutils'
 require 'rubygems'
 require 'thor'
 
@@ -9,6 +10,14 @@ require 'hrx'
 class HRX::CLI < Thor
   desc "create <archive> <paths>...", "Create a new archive"
   option :root, aliases: :r, type: :string, banner: "Root of the archive"
+  long_desc <<-LONGDESC
+    Create an archive containing the given paths.
+
+    The paths in the archive will be relative to the --root option, which
+    defaults to the working directory.
+
+    > hrx create spec.hrx input.scss output.css
+  LONGDESC
   def create(destination, *paths)
     root = _normalize(Pathname.new(options[:root] || Dir.pwd))
 
@@ -34,11 +43,73 @@ class HRX::CLI < Thor
     raise Thor::Error.new(e.message)
   end
 
+  desc "extract <archive>", "Extract files from an archive"
+  option :directory, aliases: :d, type: :string,
+         banner: "Directory to which files are extracted"
+  long_desc <<-LONGDESC
+    Extract the files from an archive.
+
+    This puts the files in the directory given by the --directory option, which
+    defaults to the name of the archive without ".hrx".
+
+    > hrx extract test/specs.hrx
+
+    Extracted 12 files to test/specs.
+  LONGDESC
+  def extract(archive)
+    directory = options[:directory] || begin
+      unless archive.end_with?(".hrx")
+        raise Thor::Error.new(
+          "Can't determine a default output directory for #{archive}. Pass one " +
+          "with --directory.")
+      end
+      directory = archive[0...-".hrx".length]
+    end
+
+    hrx = HRX::Archive.load(archive)
+    files_extracted = hrx.entries.count do |entry|
+      destination = File.join(directory, entry.path)
+      if entry.is_a?(HRX::Directory)
+        FileUtils.mkdir_p(destination)
+        false
+      else
+        FileUtils.mkdir_p(File.dirname(destination))
+        if !File.exist?(destination) ||
+           file_collision(destination) {entry.content}
+          File.write(destination, entry.content)
+          true
+        else
+          false
+        end
+      end
+    end
+
+    $stderr.puts(shell.set_color(
+      "Extracted #{_numberOf(files_extracted, 'file')} to #{directory}.",
+      :green))
+  rescue HRX::Error, SystemCallError => e
+    raise Thor::Error.new(e.message)
+  end
+
   def self.exit_on_failure?
     true
   end
 
   private
+
+  # Returns a description of the number of `singular`s.
+  #
+  # `plural` defaults to `singular` with a trailing "s".
+  def _numberOf(number, singular, plural: nil)
+    "#{number} #{_pluralize(number, singular, plural: plural)}"
+  end
+
+  # Returns `singular` if `number` is `1`, and otherwise returns `plural`.
+  #
+  # `plural` defaults to `singular` with a trailing "s".
+  def _pluralize(number, singular, plural: nil)
+    number == 1 ? singular : (plural || "#{singular}s")
+  end
 
   # Returns an HRX::File for the file at `path`, relative to `root`.
   def _file_for(path, root)

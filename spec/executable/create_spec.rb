@@ -23,13 +23,13 @@ RSpec.describe "hrx create", type: :aruba do
   end
 
   it "creates an empty HRX file" do
-    run_simple "bin/hrx create archive.hrx"
+    run_command_and_stop "bin/hrx create archive.hrx"
 
     expect("archive.hrx").to have_file_content("")
   end
 
   it "creates an HRX file with the given contents" do
-    run_simple "bin/hrx create archive.hrx file1.txt file2.txt"
+    run_command_and_stop "bin/hrx create archive.hrx file1.txt file2.txt"
 
     expect("archive.hrx").to have_file_content <<END
 <===> file1.txt
@@ -41,7 +41,7 @@ END
   end
 
   it "creates an HRX file with everything in a directory" do
-    run_simple "bin/hrx create archive.hrx sub"
+    run_command_and_stop "bin/hrx create archive.hrx sub"
 
     expect("archive.hrx").to have_file_content <<END
 <===> sub/.file.txt
@@ -56,7 +56,7 @@ END
   end
 
   it "writes filenames relative to --root" do
-    run "bin/hrx create --root sub archive.hrx sub"
+    run_command "bin/hrx create --root sub archive.hrx sub"
 
     expect("archive.hrx").to have_file_content <<END
 <===> .file.txt
@@ -72,13 +72,13 @@ END
 
   context "fails gracefully for" do
     it "an input file that doesn't exist" do
-      run "bin/hrx create archive.hrx no-file.txt", fail_on_error: false
+      run_command "bin/hrx create archive.hrx no-file.txt", fail_on_error: false
       expect(last_command_started).not_to be_successfully_executed
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
 
     it "an archive in a directory that doesn't exist" do
-      run "bin/hrx create no-dir/archive.hrx file1.txt", fail_on_error: false
+      run_command "bin/hrx create no-dir/archive.hrx file1.txt", fail_on_error: false
       expect(last_command_started).not_to be_successfully_executed
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
@@ -86,27 +86,27 @@ END
     it "an input file that's not in the working directory" do
       cd "sub"
 
-      run "bin/hrx create archive.hrx ../file1.txt", fail_on_error: false
+      run_command "bin/hrx create archive.hrx ../file1.txt", fail_on_error: false
       expect(last_command_started).not_to be_successfully_executed
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
 
     it "an input file that's not in the root directory" do
-      run "bin/hrx create --root sub archive.hrx file1.txt", fail_on_error: false
+      run_command "bin/hrx create --root sub archive.hrx file1.txt", fail_on_error: false
       expect(last_command_started).not_to be_successfully_executed
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
 
     it "an input file that's not valid UTF-8" do
       write_file "invalid-file.txt", "\xc3\x28\n".b
-      run "bin/hrx create archive.hrx invalid-file.txt", fail_on_error: false
+      run_command "bin/hrx create archive.hrx invalid-file.txt", fail_on_error: false
       expect(last_command_started).not_to be_successfully_executed
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
 
     it "an input file with an invalid path" do
       touch "foo:bar.txt"
-      run "bin/hrx create archive.hrx foo:bar.txt", fail_on_error: false
+      run_command "bin/hrx create archive.hrx foo:bar.txt", fail_on_error: false
       expect(last_command_started).not_to be_successfully_executed
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
