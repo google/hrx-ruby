@@ -96,4 +96,88 @@ END
       expect(last_command_started.stderr).not_to include_a_stack_trace
     end
   end
+
+  context "with --level" do
+    it "extracts subdirectories below the level to HRX files" do
+      run_command_and_stop "bin/hrx extract --level 1 archive.hrx"
+
+      expect("archive/sub.hrx").to have_file_content <<END
+<===> file1.txt
+sub contents 1
+
+<===> file2.txt
+sub contents 2
+END
+    end
+
+    it "extracts files above the level to normal files" do
+      run_command_and_stop "bin/hrx extract --level 1 archive.hrx"
+
+      expect("archive/file1.txt").to have_file_content("contents 1")
+      expect("archive/file2.txt").to have_file_content("contents 2")
+    end
+
+    it "extracts sub-directories within child archives" do
+      write_file("archive.hrx", <<END)
+<===> dir/child1/grandchild/great_grandchild
+contents 1
+
+<===> dir/child2/grandchild/great_grandchild
+contents 2
+END
+
+      run_command_and_stop "bin/hrx extract --level 2 archive.hrx"
+
+      expect("archive/dir/child1.hrx").to have_file_content(<<END)
+<===> grandchild/great_grandchild
+contents 1
+END
+      expect("archive/dir/child2.hrx").to have_file_content(<<END)
+<===> grandchild/great_grandchild
+contents 2
+END
+    end
+
+    it "preserves directories within child archives" do
+      write_file("archive.hrx", "<===> dir/subdir/\n")
+      run_command_and_stop "bin/hrx extract --level 1 archive.hrx"
+      expect("archive/dir.hrx").to have_file_content("<===> subdir/")
+    end
+
+    it "preserves comments within child archives" do
+      write_file("archive.hrx", <<END)
+<===>
+comment 1
+<===> dir/file.txt
+contents 1
+END
+      run_command_and_stop "bin/hrx extract --level 1 archive.hrx"
+      expect("archive/dir.hrx").to have_file_content(<<END)
+<===>
+comment 1
+<===> file.txt
+contents 1
+END
+    end
+
+    context "fails gracefully for" do
+      it "negative" do
+        run_command "bin/hrx extract --level -1 archive.hrx", fail_on_error: false
+        expect(last_command_started).not_to be_successfully_executed
+        expect(last_command_started.stderr).not_to include_a_stack_trace
+      end
+
+      it "0" do
+        run_command "bin/hrx extract --level 0 archive.hrx", fail_on_error: false
+        expect(last_command_started).not_to be_successfully_executed
+        expect(last_command_started.stderr).not_to include_a_stack_trace
+      end
+
+      it "non-integer" do
+        run_command "bin/hrx extract --level 1.5 archive.hrx", fail_on_error: false
+        expect(last_command_started).not_to be_successfully_executed
+        expect(last_command_started.stderr).not_to include_a_stack_trace
+      end
+    end
+  end
 end

@@ -76,7 +76,7 @@ class HRX::File
     HRX::File._new_without_checks(HRX::Util.relative(root, path), content, comment)
   end
 
-  # Returns a copy of this entry with `root` added tothe beginning of the path.
+  # Returns a copy of this entry with `root` added to the beginning of the path.
   #
   # If `root` is `nil`, returns this as-is.
   def _absolute(root) # :nodoc:

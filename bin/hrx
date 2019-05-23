@@ -46,6 +46,8 @@ class HRX::CLI < Thor
   desc "extract <archive>", "Extract files from an archive"
   option :directory, aliases: :d, type: :string,
          banner: "Directory to which files are extracted"
+  option :level, aliases: :l, type: :numeric,
+         banner: "Extract child archives below this nesting level"
   long_desc <<-LONGDESC
     Extract the files from an archive.
 
@@ -55,6 +57,12 @@ class HRX::CLI < Thor
     > hrx extract test/specs.hrx
 
     Extracted 12 files to test/specs.
+
+    ---
+
+    With --level, this extracts directories below that level into new HRX files.
+    For example, --level 2 extracts error/basic/input.scss and
+    error/basic/output.css to error/basic.hrx.
   LONGDESC
   def extract(archive)
     directory = options[:directory] || begin
@@ -67,28 +75,36 @@ class HRX::CLI < Thor
     end
 
     hrx = HRX::Archive.load(archive)
-    files_extracted = hrx.entries.count do |entry|
-      destination = File.join(directory, entry.path)
-      if entry.is_a?(HRX::Directory)
-        FileUtils.mkdir_p(destination)
-        false
-      else
-        FileUtils.mkdir_p(File.dirname(destination))
-        if !File.exist?(destination) ||
-           file_collision(destination) {entry.content}
-          File.write(destination, entry.content)
-          true
+    if options[:level]
+      if options[:level] < 1
+        raise Thor::Error.new("--level must be greater than or equal to 2.")
+      elsif !options[:level].is_a?(Integer)
+        raise Thor::Error.new("--level must be an integer.")
+      end
+
+      files_extracted = hrx.entries.group_by do |e|
+        dir = File.dirname(e.path)
+        dir == "." ? [] : dir.split("/")[0...options[:level]]
+      end.sum do |(components, entries)|
+        if components.length < options[:level]
+          _write_entries(directory, entries)
         else
-          false
+          path = components.join("/")
+          written = _write(
+            "#{directory}/#{path}.hrx",
+            hrx.child_archive(path).to_hrx)
+          written ? 1 : 0
         end
       end
+    else
+      files_extracted = _write_entries(directory, hrx.entries)
     end
 
     $stderr.puts(shell.set_color(
       "Extracted #{_numberOf(files_extracted, 'file')} to #{directory}.",
       :green))
   rescue HRX::Error, SystemCallError => e
-    raise Thor::Error.new(e.message)
+   raise Thor::Error.new(e.message)
   end
 
   def self.exit_on_failure?
@@ -111,9 +127,23 @@ class HRX::CLI < Thor
     number == 1 ? singular : (plural || "#{singular}s")
   end
 
-  # Returns an HRX::File for the file at `path`, relative to `root`.
-  def _file_for(path, root)
-    contents = File.read(path, encoding: 'binary')
+  # Writes `contents` to disk at `path`, querying the user if it would overwrite
+  # the existing contents. Creates the directories containing `path` if
+  # necessary.
+  #
+  # Returns whether the file was actually written.
+  def _write(path, contents)
+    if !File.exist?(path) || file_collision(path) {contents}
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, contents)
+      true
+    else
+      false
+    end
+  end
+
+  # Returns the HRX version `path`, relative to `root`.
+  def _relative_path_for(path, root)
     relative = _normalize(Pathname.new(path)).relative_path_from(root).to_s
     relative.gsub!("\\", "/") if Gem.win_platform?
 
@@ -121,11 +151,33 @@ class HRX::CLI < Thor
       raise Thor::Error.new("#{path} is not in #{options[:root] || 'the current directory'}")
     end
 
-    HRX::File.new(relative, contents)
+    relative
+  end
+
+  # Returns an HRX::File for the file at `path`, relative to `root`.
+  def _file_for(path, root)
+    HRX::File.new(
+      _relative_path_for(path, root),
+      File.read(path, encoding: 'binary'))
   rescue HRX::Error => e
     raise Thor::Error.new("Error archiving #{path}: #{e.message}")
   rescue EncodingError => e
     raise Thor::Error.new("Invalid UTF-8 in #{path}: #{e.message}")
+  end
+
+  # Writes each entry in `entries` to real files in `directory`.
+  #
+  # Returns the number of files written this way.
+  def _write_entries(directory, entries)
+    entries.count do |entry|
+      destination = File.join(directory, entry.path)
+      if entry.is_a?(HRX::Directory)
+        FileUtils.mkdir_p(destination)
+        false
+      else
+        _write(destination, entry.content)
+      end
+    end
   end
 
   # Ensures that `pathname` is absolute and doesn't contain `..`.
