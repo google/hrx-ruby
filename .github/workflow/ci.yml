@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['**']
+  pull_request:
+
+jobs:
+  dart_tests:
+    name: "Test (Ruby ${{ matrix.ruby }})"
+    runs-on: "ubuntu-latest"
+    strategy:
+      matrix:
+        ruby: [ '2.4', '2.5', '2.6', '2.7', '3.0' ]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: arduino/setup-ruby@v1
+        with: { ruby-version: "${{ matrix.ruby }}" }
+      - name: test
+        run: bundle exec rspec
