@@ -27,6 +27,6 @@ Gem::Specification.new do |s|
   s.executables << "hrx"
 
   s.add_runtime_dependency "linked-list", "~> 0.0.13"
-  s.add_runtime_dependency "thor", "~> 0.20"
+  s.add_runtime_dependency "thor", ">= 0.20", "< 2.0"
   s.required_ruby_version = ">= 2.4.0"
 end
